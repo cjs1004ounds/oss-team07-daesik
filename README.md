@@ -213,7 +213,7 @@ API 키는 서버 환경 변수로만 두고 저장소에 올리지 않습니다
 - [ ] 이 문서 팀 합의
 - [ ] API 형식 합의
 - [ ] LICENSE
-- [ ] Express 서버 뼈대
+- [x] Express 서버 뼈대
 - [ ] 가게 검색
 - [ ] 한 줄 추천 저장과 작성 화면
 - [ ] 지도에서 추천 보기
@@ -227,7 +227,30 @@ API 키는 서버 환경 변수로만 두고 저장소에 올리지 않습니다
 
 ## 실행 방법
 
-코드가 올라오면 적습니다.
+Node.js 20 이상이 필요합니다.
+
+```
+npm install
+cp .env.example .env    # 윈도우 명령 프롬프트에서는 copy .env.example .env
+npm start
+```
+
+http://localhost:3000 으로 들어가면 됩니다. `.env`에 넣을 값은 `.env.example`에 적혀 있습니다.
+
+테스트는 `npm test`로 돌립니다. `tests` 폴더에서 이름이 `.test.js`로 끝나는 파일이 실행됩니다.
+
+### 폴더
+
+| 폴더 | 들어가는 것 |
+| --- | --- |
+| `public/` | 화면. HTML, CSS, JavaScript |
+| `server/` | Express 서버. `app.js`가 앱, `index.js`가 실행, `routes/`에 API |
+| `shared/` | 계산 규칙 함수(R1~R10). 화면 코드와 섞지 않습니다 |
+| `data/seed/` | 저장소에 포함하는 시드 데이터 |
+| `tests/` | 테스트 |
+| `docs/` | API 문서 등 |
+
+실행 중에 서버가 쓰는 데이터는 `data/runtime/`에 생기고 저장소에는 올라가지 않습니다.
 
 ## 같이 작업하는 방법
 
