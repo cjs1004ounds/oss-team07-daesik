@@ -1,0 +1,8 @@
+/* 모든 화면이 같이 쓰는 기본 스타일 */
+
+body {
+  margin: 0;
+  padding: 16px;
+  font-family: sans-serif;
+  line-height: 1.5;
+}
