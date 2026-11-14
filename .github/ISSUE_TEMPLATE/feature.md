@@ -1,5 +1,5 @@
 ---
-name: 기능
+name: 기능 추가
 about: 새로 만들 기능이나 할 일
 title: "[feat] "
 labels: enhancement

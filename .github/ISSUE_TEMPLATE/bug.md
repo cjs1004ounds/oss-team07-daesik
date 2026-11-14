@@ -1,5 +1,5 @@
 ---
-name: 버그
+name: 버그 신고
 about: 동작이 기대와 다를 때
 title: "[bug] "
 labels: bug
