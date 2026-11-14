@@ -1,0 +1,13 @@
+# 설치한 패키지
+node_modules/
+
+# API 키가 들어 있는 파일
+.env
+
+# 실행 중에 서버가 쓰는 데이터 (시드는 data/seed에 따로 둠)
+data/runtime/
+
+# 로그, 운영체제가 만드는 파일
+*.log
+.DS_Store
+Thumbs.db
