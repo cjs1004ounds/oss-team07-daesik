@@ -1,0 +1,32 @@
+# PR을 열거나 고칠 때, 그리고 main에 합쳐질 때 npm test를 돌린다.
+# 배포는 하지 않는다.
+
+name: test
+
+on:
+  pull_request:
+  push:
+    branches:
+      - main
+
+# 저장소 내용을 읽기만 한다
+permissions:
+  contents: read
+
+jobs:
+  test:
+    runs-on: ubuntu-latest
+    steps:
+      # 저장소 코드를 받아 온다
+      - uses: actions/checkout@v7
+
+      # Dockerfile과 같은 Node 버전을 쓴다
+      - uses: actions/setup-node@v7
+        with:
+          node-version: 24
+          cache: npm
+
+      # package-lock.json에 적힌 버전 그대로 설치한다
+      - run: npm ci
+
+      - run: npm test
