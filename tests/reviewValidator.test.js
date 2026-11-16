@@ -94,11 +94,14 @@ describe('R6 한 줄 추천 입력값 검증', () => {
     assert.equal(validateReviewInput({ text: '음수 가격 테스트', price: -5000 }).ok, false);
   });
 
-  it('목록에 없는 태그, 중복 태그, 배열이 아닌 tags는 실패한다', () => {
-    assert.equal(
-      validateReviewInput({ text: '없는 태그 테스트', tags: ['친절함'] }).ok,
-      false
-    );
+  it('목록에 없는 태그, 중복 태그, 배열이 아닌 tags는 실패하며 오류 문구에 입력값을 노출하지 않는다', () => {
+    const invalidTagRes = validateReviewInput({
+      text: '없는 태그 테스트',
+      tags: ['친절함']
+    });
+    assert.equal(invalidTagRes.ok, false);
+    assert.equal(invalidTagRes.error, '허용되지 않은 태그입니다.');
+    
     assert.equal(
       validateReviewInput({ text: '중복 태그 테스트', tags: ['혼밥', '혼밥'] }).ok,
       false
