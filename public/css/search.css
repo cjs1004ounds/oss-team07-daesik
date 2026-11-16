@@ -2,53 +2,64 @@
 
 #search-form label {
   display: block;
-  margin-bottom: 4px;
+  margin-bottom: 6px;
+  font-size: 13px;
+  color: #888;
 }
 
+/* 입력 칸이 남는 폭을 다 쓰고 버튼은 글자 크기만큼만 차지한다 */
 .search-row {
   display: flex;
-  gap: 8px;
-  max-width: 480px;
+  gap: 6px;
 }
 
 #search-input {
   flex: 1;
   min-width: 0;
-  padding: 8px;
-  font-size: 16px;
 }
 
 #search-button {
-  padding: 8px 16px;
-  font-size: 16px;
+  flex-shrink: 0;
 }
 
+/* 검색 중, 결과 없음, 오류 안내 */
+#search-message {
+  min-height: 21px;
+  margin: 14px 0 6px;
+  font-size: 13px;
+  color: #888;
+}
+
+/* 결과 목록. 가게 사이를 선으로만 나눈다 */
 #search-results {
-  max-width: 480px;
   margin: 0;
   padding: 0;
   list-style: none;
+  border-top: 1px solid #e5e5e5;
+}
+
+#search-results:empty {
+  border-top: none;
 }
 
 #search-results li {
-  margin-bottom: 8px;
+  border-bottom: 1px solid #e5e5e5;
 }
 
+/* 가게 하나. 버튼이지만 목록의 한 줄처럼 보이게 기본 버튼 모양을 지운다 */
 .place-button {
   display: block;
   width: 100%;
-  padding: 12px;
+  padding: 14px 4px;
+  border: none;
+  border-radius: 0;
+  background: none;
+  color: #333;
   text-align: left;
-  font-size: 16px;
-  background: #fff;
-  border: 1px solid #ccc;
-  border-radius: 8px;
-  cursor: pointer;
 }
 
-.place-button:hover,
-.place-button:focus {
-  border-color: #333;
+.place-button:hover {
+  background: #f7f7f7;
 }
 
 .place-button strong,
@@ -56,8 +67,12 @@
   display: block;
 }
 
+.place-button strong {
+  font-size: 16px;
+}
+
 .place-button span {
-  margin-top: 4px;
-  font-size: 14px;
-  color: #555;
+  margin-top: 2px;
+  font-size: 13px;
+  color: #888;
 }
