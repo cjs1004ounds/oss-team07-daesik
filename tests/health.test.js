@@ -26,6 +26,12 @@ test('GET /api/health 는 200과 status ok를 돌려준다', async () => {
   assert.deepStrictEqual(body, { status: 'ok' });
 });
 
+test('응답에 X-Powered-By 헤더가 없다', async () => {
+  const res = await fetch(`${baseUrl}/api/health`);
+
+  assert.strictEqual(res.headers.get('x-powered-by'), null);
+});
+
 test('없는 API 경로는 404와 JSON을 돌려준다', async () => {
   const res = await fetch(`${baseUrl}/api/nothing`);
   const body = await res.json();
