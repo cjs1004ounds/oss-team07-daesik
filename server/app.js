@@ -9,6 +9,10 @@ const placesRouter = require('./routes/places');
 
 const app = express();
 
+// 응답에 "X-Powered-By: Express" 헤더를 붙이지 않는다.
+// 어떤 프레임워크를 쓰는지 밖에 알려 줄 필요가 없다
+app.disable('x-powered-by');
+
 // 요청 본문의 JSON을 req.body로 읽는다
 app.use(express.json());
 
