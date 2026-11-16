@@ -5,4 +5,7 @@ body {
   padding: 16px;
   font-family: sans-serif;
   line-height: 1.5;
+  /* 기기가 다크 모드여도 글자가 보이게 배경과 글자색을 정해 둔다 */
+  background: #fff;
+  color: #222;
 }
