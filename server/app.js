@@ -4,6 +4,7 @@
 const path = require('path');
 const express = require('express');
 
+const configRouter = require('./routes/config');
 const healthRouter = require('./routes/health');
 const placesRouter = require('./routes/places');
 
@@ -21,6 +22,7 @@ app.use(express.static(path.join(__dirname, '..', 'public')));
 
 // API 경로. 새 API는 routes 폴더에 파일을 만들고 여기에 한 줄 추가한다
 app.use('/api/health', healthRouter);
+app.use('/api/config', configRouter);
 app.use('/api/places', placesRouter);
 
 // 없는 API 경로로 오면 JSON으로 404를 돌려준다
