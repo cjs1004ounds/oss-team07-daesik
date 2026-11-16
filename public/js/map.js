@@ -67,8 +67,12 @@ function drawMap() {
     level: MAP_LEVEL,
   });
 
-  // 창 크기가 바뀌거나 휴대폰을 돌리면 지도가 새 크기에 맞게 다시 그려지게 한다
+  // 창 크기가 바뀌거나 휴대폰을 돌리면 지도를 새 크기에 맞게 다시 그린다.
+  // relayout만 하면 왼쪽 위가 고정된 채로 크기만 바뀌어서 보고 있던 곳이 밀린다.
+  // 그래서 바꾸기 전의 가운데를 기억해 뒀다가 다시 맞춘다
   window.addEventListener('resize', () => {
+    const center = map.getCenter();
     map.relayout();
+    map.setCenter(center);
   });
 }
