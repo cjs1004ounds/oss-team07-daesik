@@ -8,24 +8,30 @@
   <link rel="stylesheet" href="/css/search.css">
 </head>
 <body>
-  <p class="sub"><a href="/">지도로 돌아가기</a></p>
+  <header class="site-header">
+    <a class="site-title" href="/">광운대 주변 음식점 추천 지도</a>
+  </header>
 
-  <h1>가게 검색</h1>
-  <p>한 줄 추천을 남길 가게를 찾아 주세요. 학교 근처 음식점만 나옵니다.</p>
+  <main class="page">
+    <p class="sub"><a href="/">지도로 돌아가기</a></p>
 
-  <form id="search-form">
-    <label for="search-input">가게 이름이나 메뉴</label>
-    <div class="search-row">
-      <input id="search-input" type="search" placeholder="예: 제육, 돈까스" autocomplete="off" required>
-      <button id="search-button" type="submit">검색</button>
-    </div>
-  </form>
+    <h1>가게 검색</h1>
+    <p>한 줄 추천을 남길 가게를 찾아 주세요. 학교 근처 음식점만 나옵니다.</p>
 
-  <!-- 검색 중, 결과 없음, 오류 같은 안내가 들어가는 자리 -->
-  <p id="search-message" role="status"></p>
+    <form id="search-form">
+      <label for="search-input">가게 이름이나 메뉴</label>
+      <div class="search-row">
+        <input id="search-input" type="search" placeholder="예: 제육, 돈까스" autocomplete="off" required>
+        <button id="search-button" type="submit">검색</button>
+      </div>
+    </form>
 
-  <!-- 검색 결과. 가게 하나가 버튼 하나 -->
-  <ul id="search-results"></ul>
+    <!-- 검색 중, 결과 없음, 오류 같은 안내가 들어가는 자리 -->
+    <p id="search-message" role="status"></p>
+
+    <!-- 검색 결과. 가게 하나가 버튼 하나 -->
+    <ul id="search-results"></ul>
+  </main>
 
   <script src="/js/search.js"></script>
 </body>

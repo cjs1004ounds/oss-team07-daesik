@@ -62,17 +62,27 @@
   background: #f7f7f7;
 }
 
-.place-button strong,
-.place-button span {
-  display: block;
+/* 첫 줄: 가게 이름 옆에 분류를 작게 붙인다. 길면 분류가 다음 줄로 내려간다 */
+.place-title {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: baseline;
+  gap: 2px 8px;
 }
 
-.place-button strong {
+.place-name {
   font-size: 16px;
 }
 
-.place-button span {
-  margin-top: 2px;
+.place-category {
   font-size: 13px;
   color: #888;
+}
+
+/* 둘째 줄: 주소 */
+.place-address {
+  display: block;
+  margin-top: 2px;
+  font-size: 13px;
+  color: #666;
 }
