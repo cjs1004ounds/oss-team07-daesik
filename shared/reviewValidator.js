@@ -60,7 +60,7 @@ function validateReviewInput(input) {
     }
     for (const tag of tags) {
       if (typeof tag !== 'string' || !ALLOWED_TAGS.includes(tag)) {
-        return { ok: false, error: `허용되지 않은 태그입니다: ${tag}` };
+        return { ok: false, error: '허용되지 않은 태그입니다.' };
       }
     }
     normalizedTags = [...tags];
