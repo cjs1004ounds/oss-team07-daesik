@@ -61,21 +61,43 @@ function showMessage(text) {
 function showResults(places) {
   for (const place of places) {
     const name = document.createElement('strong');
+    name.className = 'place-name';
     name.textContent = place.name;
 
-    const detail = document.createElement('span');
-    detail.textContent = place.category + ' | ' + place.address;
+    const category = document.createElement('span');
+    category.className = 'place-category';
+    category.textContent = shortCategory(place.category);
+
+    // 첫 줄: 이름과 분류
+    const title = document.createElement('span');
+    title.className = 'place-title';
+    title.append(name, category);
+
+    // 둘째 줄: 주소
+    const address = document.createElement('span');
+    address.className = 'place-address';
+    address.textContent = place.address;
 
     const placeButton = document.createElement('button');
     placeButton.type = 'button';
     placeButton.className = 'place-button';
-    placeButton.append(name, detail);
+    placeButton.append(title, address);
     placeButton.addEventListener('click', () => selectPlace(place));
 
     const item = document.createElement('li');
     item.append(placeButton);
     results.append(item);
   }
+}
+
+// 화면에 보여 줄 때만 분류를 짧게 만든다.
+// 카카오 분류는 "음식점 > 일식 > 돈까스,우동"처럼 오는데 맨 앞의 "음식점"은 모든 가게가 같아서 뺀다.
+// 저장하거나 넘길 때는 원래 값을 그대로 쓴다
+function shortCategory(category) {
+  if (typeof category !== 'string') {
+    return '';
+  }
+  return category.replace(/^음식점( > )?/, '');
 }
 
 // 고른 가게를 sessionStorage에 넣고 작성 화면으로 간다 (docs/api.md)
