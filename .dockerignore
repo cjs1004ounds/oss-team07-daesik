@@ -16,5 +16,6 @@ data/runtime
 .github
 tests
 docs
+deploy
 *.md
 *.log
