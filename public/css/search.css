@@ -1,0 +1,63 @@
+/* 가게 검색 화면에서만 쓰는 스타일 */
+
+#search-form label {
+  display: block;
+  margin-bottom: 4px;
+}
+
+.search-row {
+  display: flex;
+  gap: 8px;
+  max-width: 480px;
+}
+
+#search-input {
+  flex: 1;
+  min-width: 0;
+  padding: 8px;
+  font-size: 16px;
+}
+
+#search-button {
+  padding: 8px 16px;
+  font-size: 16px;
+}
+
+#search-results {
+  max-width: 480px;
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+
+#search-results li {
+  margin-bottom: 8px;
+}
+
+.place-button {
+  display: block;
+  width: 100%;
+  padding: 12px;
+  text-align: left;
+  font-size: 16px;
+  background: #fff;
+  border: 1px solid #ccc;
+  border-radius: 8px;
+  cursor: pointer;
+}
+
+.place-button:hover,
+.place-button:focus {
+  border-color: #333;
+}
+
+.place-button strong,
+.place-button span {
+  display: block;
+}
+
+.place-button span {
+  margin-top: 4px;
+  font-size: 14px;
+  color: #555;
+}
