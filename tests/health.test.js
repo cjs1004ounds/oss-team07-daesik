@@ -50,6 +50,20 @@ test('깨진 JSON을 보내면 400을 돌려준다', async () => {
   assert.strictEqual(res.status, 400);
 });
 
+test('본문이 100KB를 넘으면 413을 돌려주고 서버는 계속 동작한다', async () => {
+  const res = await fetch(`${baseUrl}/api/reviews`, {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({ text: '가'.repeat(50000) }),
+  });
+  const body = await res.json();
+  const health = await fetch(`${baseUrl}/api/health`);
+
+  assert.strictEqual(res.status, 413);
+  assert.ok(body.error);
+  assert.strictEqual(health.status, 200);
+});
+
 test('public 폴더의 index.html을 내려준다', async () => {
   const res = await fetch(`${baseUrl}/`);
   const text = await res.text();

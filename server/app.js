@@ -40,6 +40,12 @@ app.use((err, req, res, next) => {
     return;
   }
 
+  // 요청 본문이 너무 크면(기본 100KB 초과) express.json()이 status 413인 오류를 넘겨준다
+  if (err.status === 413) {
+    res.status(413).json({ error: '요청이 너무 큽니다.' });
+    return;
+  }
+
   console.error(err);
   res.status(500).json({ error: '서버에서 오류가 났습니다.' });
 });
