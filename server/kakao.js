@@ -3,9 +3,13 @@
 
 const KAKAO_URL = 'https://dapi.kakao.com/v2/local/search/keyword.json';
 
-// 검색 범위. 학교 기준점은 아직 팀에서 못 정해서 임시로 넣은 값이다 (README "아직 못 정한 것")
-const SEARCH_CENTER = { lat: 37.6194, lng: 127.0598 };
-const SEARCH_RADIUS_M = 2000;
+// 검색 가운데. 카카오에서 찾은 광운대학교 위치다. 첫 화면 지도(public/js/map.js)와 같은 값을 쓴다.
+// 학교 기준점은 아직 팀에서 못 정해서 임시로 넣은 값이다 (README "아직 못 정한 것")
+const SEARCH_CENTER = { lat: 37.61924, lng: 127.05827 };
+
+// 검색 반경. 도보 15분(R2)이 직선으로 약 1km라서 거기에 맞췄다.
+// 더 넓게 찾으면 기록을 남겨도 지도에 안 나오는 가게가 검색된다
+const SEARCH_RADIUS_M = 1000;
 
 // 카카오가 주는 장소 하나를 우리가 쓰는 모양으로 바꾼다 (docs/api.md)
 // 카카오는 경도를 x, 위도를 y에 문자열로 준다
@@ -50,6 +54,8 @@ async function searchPlaces(query) {
 }
 
 module.exports = {
+  SEARCH_CENTER,
+  SEARCH_RADIUS_M,
   toPlace,
   searchPlaces,
 };
