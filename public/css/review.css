@@ -1,0 +1,103 @@
+.selected-place {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: baseline;
+  gap: 8px;
+  margin-bottom: 20px;
+  padding: 12px 14px;
+  border: 1px solid #e5e5e5;
+  border-radius: 6px;
+  background: #f7f7f7;
+}
+
+.selected-place-name {
+  font-size: 16px;
+  color: #333;
+}
+
+.field {
+  margin-bottom: 18px;
+}
+
+.label-row {
+  display: flex;
+  align-items: baseline;
+  justify-content: space-between;
+  gap: 8px;
+  margin-bottom: 6px;
+}
+
+.field label,
+.field-label {
+  display: block;
+  margin-bottom: 6px;
+  font-weight: 700;
+}
+
+.label-row label {
+  margin-bottom: 0;
+}
+
+textarea {
+  width: 100%;
+  padding: 9px 10px;
+  border: 1px solid #ccc;
+  border-radius: 4px;
+  font-family: inherit;
+  font-size: 15px;
+  line-height: 1.5;
+  color: #333;
+  resize: vertical;
+}
+
+textarea:focus {
+  border-color: #2a6fdb;
+  outline: none;
+}
+
+.privacy-notice {
+  margin: 6px 0 0;
+  font-size: 13px;
+  color: #666;
+}
+
+#review-price {
+  width: 100%;
+}
+
+.tag-list {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+}
+
+.tag-button {
+  padding: 6px 12px;
+  border: 1px solid #ccc;
+  border-radius: 999px;
+  background: #fff;
+  color: #333;
+  font-size: 14px;
+}
+
+.tag-button:hover {
+  border-color: #2a6fdb;
+  background: #f2f6fd;
+}
+
+.tag-button[aria-pressed="true"] {
+  border-color: #2a6fdb;
+  background: #2a6fdb;
+  color: #fff;
+}
+
+.form-message {
+  min-height: 22px;
+  margin: 0 0 12px;
+  font-size: 14px;
+  color: #c92a2a;
+}
+
+.actions button {
+  width: 100%;
+}
