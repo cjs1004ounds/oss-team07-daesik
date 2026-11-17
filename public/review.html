@@ -5,14 +5,9 @@
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
   <title>한 줄 추천 쓰기 | 광운대 주변 음식점 추천 지도</title>
   <link rel="stylesheet" href="/css/style.css">
+  <link rel="stylesheet" href="/css/review.css">
 </head>
 <body>
-  <!--
-    한 줄 추천 작성 화면이 들어올 자리 (이슈 #11).
-    검색 화면에서 고른 가게가 넘어오는지 확인하려고 가게 이름만 보여 준다.
-    작성 화면을 만들 때 main 안쪽을 통째로 바꿔도 된다.
-    맨 위 바(header)와 main의 class="page"는 다른 화면과 모양을 맞추려고 넣은 것이다.
-  -->
   <header class="site-header">
     <a class="site-title" href="/">광운대 주변 음식점 추천 지도</a>
   </header>
@@ -21,20 +16,53 @@
     <p class="sub"><a href="/search.html">다른 가게 찾기</a></p>
 
     <h1>한 줄 추천 쓰기</h1>
-    <p>고른 가게: <strong id="place-name"></strong></p>
-    <p>작성 화면은 아직 만드는 중입니다.</p>
+
+    <section class="selected-place" aria-label="고른 가게">
+      <strong id="place-name" class="selected-place-name"></strong>
+      <span id="place-category" class="sub"></span>
+    </section>
+
+    <form id="review-form" novalidate>
+      <div class="field">
+        <div class="label-row">
+          <label for="review-text">한 줄 추천</label>
+          <span id="text-count" class="sub">0 / 100자</span>
+        </div>
+        <textarea
+          id="review-text"
+          rows="3"
+          maxlength="100"
+          placeholder="예: 제육 7천원인데 양 많음 혼밥하기 좋음"
+          required
+        ></textarea>
+        <p class="privacy-notice">이름, 학번, 연락처 같은 개인정보는 쓰지 말아 주세요. 남긴 추천은 누구나 볼 수 있습니다.</p>
+      </div>
+
+      <div class="field">
+        <label for="review-price">1인 가격 (원, 선택)</label>
+        <input
+          id="review-price"
+          type="number"
+          min="1000"
+          max="100000"
+          step="1"
+          placeholder="비워 두거나 1,000~100,000 사이 숫자"
+        >
+      </div>
+
+      <div class="field">
+        <span class="field-label">태그 (최대 3개, 선택)</span>
+        <div id="tag-list" class="tag-list" role="group" aria-label="추천 태그 선택"></div>
+      </div>
+
+      <p id="form-message" class="form-message" role="status"></p>
+
+      <div class="actions">
+        <button id="submit-button" type="submit">저장하기</button>
+      </div>
+    </form>
   </main>
 
-  <script>
-    // 검색 화면이 sessionStorage에 넣어 둔 가게를 꺼낸다 (docs/api.md)
-    const saved = sessionStorage.getItem('selectedPlace');
-    if (saved === null) {
-      // 가게를 고르지 않고 들어왔으면 검색 화면으로 돌려보낸다
-      location.replace('/search.html');
-    } else {
-      const place = JSON.parse(saved);
-      document.getElementById('place-name').textContent = place.name;
-    }
-  </script>
+  <script src="/js/review.js"></script>
 </body>
 </html>
