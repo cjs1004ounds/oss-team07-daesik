@@ -7,6 +7,7 @@ const express = require('express');
 const configRouter = require('./routes/config');
 const healthRouter = require('./routes/health');
 const placesRouter = require('./routes/places');
+const reviewsRouter = require('./routes/reviews');
 
 const app = express();
 
@@ -24,6 +25,7 @@ app.use(express.static(path.join(__dirname, '..', 'public')));
 app.use('/api/health', healthRouter);
 app.use('/api/config', configRouter);
 app.use('/api/places', placesRouter);
+app.use('/api/reviews', reviewsRouter);
 
 // 없는 API 경로로 오면 JSON으로 404를 돌려준다
 app.use('/api', (req, res) => {
