@@ -132,8 +132,8 @@ Session Manager 창에서는 여러 줄을 한 번에 붙여 넣으면 일부만
 cd ~
 sudo apt update
 sudo apt install -y docker.io git
-git clone https://github.com/cjs1004ounds/oss-teamproject.git
-cd oss-teamproject
+git clone https://github.com/cjs1004ounds/oss-team07-daesik.git
+cd oss-team07-daesik
 ```
 
 ### API 키 넣기
@@ -208,8 +208,10 @@ sudo docker stats --no-stream
 
 main에 합쳐도 서버는 자동으로 바뀌지 않습니다. 서버에 접속해서 한 줄씩 실행합니다. 볼륨은 그대로 두기 때문에 기록은 남습니다.
 
+저장소 이름을 바꾸기 전에 받아 둔 서버는 폴더 이름이 `oss-teamproject`입니다. 그 서버에서는 첫 줄을 `cd ~/oss-teamproject`로 합니다.
+
 ```
-cd ~/oss-teamproject
+cd ~/oss-team07-daesik
 git pull
 sudo docker build -t oss-teamproject .
 sudo docker rm -f oss-app
