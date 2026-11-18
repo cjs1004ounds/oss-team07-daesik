@@ -1,7 +1,8 @@
 // 한 줄 추천 작성 화면.
 // 검색 화면에서 고른 가게에 한 줄 추천을 입력받아 POST /api/reviews 로 저장한다.
 
-// R6 규칙에서 허용하는 고정 태그 8개 및 최대 선택 개수
+// R6 규칙에서 허용하는 태그 목록과 최대 선택 개수.
+// 서버 검사(shared/reviewValidator.js)와 README에도 같은 목록이 있다. 바꿀 때는 세 곳을 같이 바꾼다
 const ALLOWED_TAGS = [
   '양 많음',
   '혼밥',
@@ -11,9 +12,15 @@ const ALLOWED_TAGS = [
   '단체 가능',
   '늦게까지 함',
   '매움',
+  '청결함',
 ];
 const MAX_TAGS = 3;
 const MAP_PAGE = '/';
+
+// 가격 범위(R6)와 올리기, 내리기 버튼을 한 번 누를 때 바뀌는 값
+const PRICE_MIN = 1000;
+const PRICE_MAX = 100000;
+const PRICE_STEP = 100;
 
 // 화면의 주요 HTML 요소 참조
 const placeNameEl = document.getElementById('place-name');
@@ -22,6 +29,8 @@ const form = document.getElementById('review-form');
 const textInput = document.getElementById('review-text');
 const textCountEl = document.getElementById('text-count');
 const priceInput = document.getElementById('review-price');
+const priceDownButton = document.getElementById('price-down');
+const priceUpButton = document.getElementById('price-up');
 const tagListEl = document.getElementById('tag-list');
 const messageEl = document.getElementById('form-message');
 const submitButton = document.getElementById('submit-button');
@@ -44,6 +53,32 @@ textInput.addEventListener('input', () => {
   const length = textInput.value.trim().length;
   textCountEl.textContent = `${length} / 100자`;
 });
+
+// 가격을 입력할 때마다 숫자만 남기고 천 단위 쉼표를 다시 붙인다 (7000 -> 7,000)
+priceInput.addEventListener('input', () => {
+  // 쉼표가 생기거나 없어지면 커서가 밀린다.
+  // 커서 앞에 숫자가 몇 개 있었는지 기억해 뒀다가 같은 자리로 돌려놓는다
+  const digitsBeforeCaret = digitsOnly(priceInput.value.slice(0, priceInput.selectionStart)).length;
+
+  // 100,000이 가장 큰 값이라 숫자는 6개까지만 받는다
+  const digits = digitsOnly(priceInput.value).slice(0, 6);
+  priceInput.value = formatPrice(digits);
+  moveCaretAfterDigits(priceInput, digitsBeforeCaret);
+});
+
+// 가격 칸에서 위아래 방향키를 누르면 100원씩 바뀐다
+priceInput.addEventListener('keydown', (event) => {
+  if (event.key === 'ArrowUp') {
+    event.preventDefault();
+    stepPrice(PRICE_STEP);
+  } else if (event.key === 'ArrowDown') {
+    event.preventDefault();
+    stepPrice(-PRICE_STEP);
+  }
+});
+
+priceUpButton.addEventListener('click', () => stepPrice(PRICE_STEP));
+priceDownButton.addEventListener('click', () => stepPrice(-PRICE_STEP));
 
 // 폼 제출 시 페이지 새로고침을 막고 비동기 저장 함수를 실행한다
 form.addEventListener('submit', async (event) => {
@@ -84,7 +119,7 @@ function shortCategory(category) {
   return category.replace(/^음식점( > )?/, '');
 }
 
-// 허용된 태그 8개를 토글 버튼으로 만들어 화면에 붙인다. 최대 3개까지 고를 수 있다
+// 허용된 태그를 토글 버튼으로 만들어 화면에 붙인다. 최대 3개까지 고를 수 있다
 function renderTagButtons() {
   for (const tag of ALLOWED_TAGS) {
     const button = document.createElement('button');
@@ -132,7 +167,8 @@ function getOrCreateAnonId() {
 
 // 가격 입력칸 문자열을 검사해 숫자 또는 null(미입력)로 변환한다
 function parsePriceInput(raw) {
-  const trimmed = raw.trim();
+  // 화면에는 쉼표가 붙어 있으므로 떼고 본다
+  const trimmed = raw.replace(/,/g, '').trim();
   if (trimmed === '') {
     return { ok: true, value: null };
   }
@@ -141,6 +177,51 @@ function parsePriceInput(raw) {
     return { ok: false, error: '가격은 1,000원 이상 100,000원 이하의 정수로 입력해 주세요.' };
   }
   return { ok: true, value: num };
+}
+
+// 글자에서 숫자만 남긴다. "7,000원" -> "7000"
+function digitsOnly(text) {
+  return text.replace(/[^0-9]/g, '');
+}
+
+// 숫자 글자에 천 단위 쉼표를 붙인다. "7000" -> "7,000". 빈 값은 그대로 빈 값
+function formatPrice(digits) {
+  if (digits === '') {
+    return '';
+  }
+  return Number(digits).toLocaleString('ko-KR');
+}
+
+// 입력 칸의 커서를 앞에서부터 숫자 count개를 지난 자리에 둔다
+function moveCaretAfterDigits(input, count) {
+  let position = 0;
+  let seen = 0;
+  while (position < input.value.length && seen < count) {
+    if (/[0-9]/.test(input.value[position])) {
+      seen += 1;
+    }
+    position += 1;
+  }
+  input.setSelectionRange(position, position);
+}
+
+// 가격을 amount만큼 바꾼다 (+100 또는 -100).
+// 비어 있으면 가장 낮은 가격부터 시작하고, 7,550처럼 100원 단위가 아니면 가까운 100원 단위로 맞춘다
+function stepPrice(amount) {
+  const digits = digitsOnly(priceInput.value);
+
+  let next;
+  if (digits === '') {
+    next = PRICE_MIN;
+  } else if (amount > 0) {
+    next = Math.floor(Number(digits) / PRICE_STEP) * PRICE_STEP + PRICE_STEP;
+  } else {
+    next = Math.ceil(Number(digits) / PRICE_STEP) * PRICE_STEP - PRICE_STEP;
+  }
+
+  // 범위를 벗어나지 않게 한다
+  next = Math.min(PRICE_MAX, Math.max(PRICE_MIN, next));
+  priceInput.value = formatPrice(String(next));
 }
 
 // 오류 또는 안내 문구를 화면에 표시한다
