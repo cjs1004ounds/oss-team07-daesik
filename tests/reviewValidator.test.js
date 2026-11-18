@@ -35,7 +35,21 @@ describe('R6 한 줄 추천 입력값 검증', () => {
     assert.equal(resEmpty.value.price, null);
   });
 
-  it('README에 정의된 8개 허용 태그는 모두 통과한다', () => {
+  it('태그 목록은 README에 적힌 9개와 같다', () => {
+    assert.deepEqual(ALLOWED_TAGS, [
+      '양 많음',
+      '혼밥',
+      '가성비',
+      '빨리 나옴',
+      '조용함',
+      '단체 가능',
+      '늦게까지 함',
+      '매움',
+      '청결함',
+    ]);
+  });
+
+  it('README에 정의된 허용 태그는 모두 통과한다', () => {
     for (const tag of ALLOWED_TAGS) {
       const result = validateReviewInput({
         text: '허용 태그 개별 검증 테스트',
