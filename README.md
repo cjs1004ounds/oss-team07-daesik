@@ -5,7 +5,7 @@
 2026년 2학기 오픈소스소프트웨어및실습 7조(team07) 프로젝트입니다.
 
 - 제안 이슈: [kw-hdi-lab/oss2026-project#7](https://github.com/kw-hdi-lab/oss2026-project/issues/7) (확정됨)
-- 배포 주소: https://kwfood.duckdns.org (서비스 이름이 정해지면 주소가 바뀔 수 있습니다)
+- 배포 주소: https://daesik.duckdns.org (예전 주소 https://kwfood.duckdns.org 로도 열립니다)
 - 지금 상태: 첫 화면에 학교 주변 지도가 나오고, 가게를 검색해서 고르는 것까지 됩니다. 한 줄 추천을 저장하는 API는 들어왔고, 작성 화면과 지도에 가게를 표시하는 부분은 만드는 중입니다. 아래 "피드백을 받고 바꾼 것"부터는 팀 합의 전 초안입니다.
 
 ## 확정된 제안
@@ -167,7 +167,7 @@ API 키는 서버 환경 변수로만 두고 저장소에 올리지 않습니다
 
 ## 배포
 
-https://kwfood.duckdns.org 에 올라가 있습니다. 만든 순서와 다시 올리는 방법은 [docs/deploy.md](docs/deploy.md)에 있습니다.
+https://daesik.duckdns.org 에 올라가 있습니다. 만든 순서와 다시 올리는 방법은 [docs/deploy.md](docs/deploy.md)에 있습니다.
 
 - AWS EC2 한 대에서 Docker 컨테이너로 Express 서버를 실행합니다. 메모리는 512MB로 제한했습니다.
 - 앞에 nginx를 두고 https를 처리합니다. 인증서는 Let's Encrypt에서 받았고 자동으로 갱신됩니다.
