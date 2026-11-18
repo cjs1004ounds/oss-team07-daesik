@@ -1,6 +1,8 @@
 # 배포
 
-배포 주소: https://kwfood.duckdns.org
+배포 주소: https://daesik.duckdns.org
+
+처음에는 kwfood.duckdns.org로 올렸다가 서비스 이름이 정해진 뒤 주소를 하나 더 붙였습니다. 두 주소 모두 같은 서버로 연결됩니다.
 
 AWS EC2 한 대에서 Docker 컨테이너로 서버를 실행하고, 앞에 nginx를 둬서 https를 처리합니다. 코드를 올리는 건 서버에 접속해서 명령으로 직접 합니다.
 
@@ -11,7 +13,7 @@ AWS EC2 한 대에서 Docker 컨테이너로 서버를 실행하고, 앞에 ngin
 ```
 인터넷
   |
-kwfood.duckdns.org (탄력적 IP)
+daesik.duckdns.org, kwfood.duckdns.org (탄력적 IP)
   |
 인터넷 게이트웨이
   |
@@ -120,6 +122,26 @@ https://www.duckdns.org 에서 하위 주소를 만들고 IP 칸에 탄력적 IP
 
 DuckDNS 화면의 token은 비밀번호 같은 값이라 저장소나 채팅에 올리지 않습니다.
 
+### 주소를 하나 더 붙일 때
+
+서비스 이름이 정해져서 `daesik` 주소를 추가할 때 한 순서입니다. 서버에서 한 줄씩 실행합니다.
+
+1. DuckDNS에서 새 하위 주소를 만들고 같은 탄력적 IP를 넣습니다.
+2. 카카오 디벨로퍼스의 JavaScript SDK 도메인에 새 주소를 추가합니다. 안 하면 새 주소에서 지도가 안 뜹니다.
+3. nginx 설정의 `server_name`에 새 주소를 추가하고 반영합니다.
+
+```
+sudo sed -i 's/server_name kwfood.duckdns.org;/server_name daesik.duckdns.org kwfood.duckdns.org;/' /etc/nginx/sites-available/oss
+sudo nginx -t
+sudo systemctl reload nginx
+```
+
+4. 기존 인증서에 새 주소를 더합니다.
+
+```
+sudo certbot --nginx -d kwfood.duckdns.org -d daesik.duckdns.org --expand --redirect
+```
+
 ## 6. 서버에 올리기
 
 콘솔에서 인스턴스를 고르고 "연결"에서 Session Manager로 접속합니다.
@@ -189,7 +211,7 @@ sudo systemctl reload nginx
 Let's Encrypt에서 무료 인증서를 받습니다. 이메일과 약관 동의를 물어봅니다.
 
 ```
-sudo certbot --nginx -d kwfood.duckdns.org --redirect
+sudo certbot --nginx -d daesik.duckdns.org -d kwfood.duckdns.org --redirect
 ```
 
 - certbot이 `/etc/nginx/sites-available/oss`에 https 설정을 직접 추가합니다. 그래서 서버의 파일은 저장소의 파일보다 줄이 더 많습니다.
@@ -199,7 +221,7 @@ sudo certbot --nginx -d kwfood.duckdns.org --redirect
 ### 확인
 
 ```
-curl -I https://kwfood.duckdns.org/api/health
+curl -I https://daesik.duckdns.org/api/health
 sudo docker ps
 sudo docker stats --no-stream
 ```
@@ -247,4 +269,3 @@ sudo docker run -d --name oss-app --init --restart unless-stopped -p 127.0.0.1:3
 
 - 머지하면 자동으로 올라가게 하는 것. 수업 조건(자동 배포 서비스 금지)에 걸리는지 확인한 뒤 정합니다.
 - 데이터 백업. 지금은 EC2 디스크의 볼륨에만 있습니다.
-- 서비스 이름이 정해지면 주소를 바꿀 수 있습니다. 그때는 nginx 설정의 `server_name`을 바꾸고 인증서를 새로 받습니다.
