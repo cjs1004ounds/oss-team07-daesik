@@ -61,8 +61,28 @@ textarea:focus {
   color: #666;
 }
 
+/* 가격 입력 칸 옆에 100원씩 올리고 내리는 버튼을 둔다 */
+.price-row {
+  display: flex;
+  gap: 6px;
+}
+
 #review-price {
-  width: 100%;
+  flex: 1;
+  min-width: 0;
+}
+
+.step-button {
+  flex: none;
+  padding: 9px 12px;
+  border: 1px solid #ccc;
+  background: #fff;
+  color: #333;
+}
+
+.step-button:hover {
+  border-color: #2a6fdb;
+  background: #f2f6fd;
 }
 
 .tag-list {

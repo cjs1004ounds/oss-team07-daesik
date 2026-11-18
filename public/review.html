@@ -40,14 +40,19 @@
 
       <div class="field">
         <label for="review-price">1인 가격 (원, 선택)</label>
-        <input
-          id="review-price"
-          type="number"
-          min="1000"
-          max="100000"
-          step="1"
-          placeholder="비워 두거나 1,000~100,000 사이 숫자"
-        >
+        <!-- 쉼표를 붙여 보여 주려고 type="number" 대신 글자 입력 칸을 쓴다. 휴대폰에서는 숫자 자판이 뜬다 -->
+        <div class="price-row">
+          <input
+            id="review-price"
+            type="text"
+            inputmode="numeric"
+            autocomplete="off"
+            maxlength="7"
+            placeholder="비워 두거나 1,000~100,000 사이 숫자"
+          >
+          <button id="price-down" type="button" class="step-button" aria-label="100원 내리기">-100</button>
+          <button id="price-up" type="button" class="step-button" aria-label="100원 올리기">+100</button>
+        </div>
       </div>
 
       <div class="field">
