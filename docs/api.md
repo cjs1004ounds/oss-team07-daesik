@@ -185,6 +185,23 @@
 - 없는 가게면 404
 - 응답에는 `anonId`를 넣지 않습니다.
 
+## 익명 ID
+
+로그인이 없어서 브라우저마다 무작위 ID를 하나 만들어 씁니다. 같은 사람이 같은 가게에 여러 번 남기는 것을 막을 때(R7), 투표를 한 사람 한 표로 셀 때(R8) 씁니다.
+
+- `localStorage`의 `anonId`라는 이름에 저장합니다.
+- 처음 필요할 때 `crypto.randomUUID()`로 만듭니다. 이 함수가 없는 환경에서는 시각과 난수를 이어 붙인 문자열을 씁니다.
+- 한 줄 추천, 다녀왔어요, 투표가 모두 같은 값을 씁니다. 새 화면에서도 같은 이름으로 꺼내 쓰면 됩니다.
+- 브라우저 저장소를 지우면 새 ID가 되므로 중복을 완전히 막지는 못합니다.
+
+```js
+let anonId = localStorage.getItem('anonId');
+if (!anonId) {
+  anonId = crypto.randomUUID();
+  localStorage.setItem('anonId', anonId);
+}
+```
+
 ## 검색 화면에서 작성 화면으로 가게 넘기기
 
 검색 화면에서 가게를 고르면 그 가게를 `sessionStorage`에 `selectedPlace`라는 이름으로 넣고 작성 화면으로 이동합니다.
@@ -202,4 +219,3 @@ const place = JSON.parse(sessionStorage.getItem('selectedPlace'));
 ## 아직 못 정한 것
 
 - 음식 종류 필터에서 `category`를 어떻게 잘라 쓸지. 둘째 단계만 쓰는 방법을 생각하고 있습니다. (#21)
-- 익명 ID를 브라우저에서 어떻게 만들고 어디에 저장할지
