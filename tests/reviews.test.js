@@ -174,4 +174,74 @@ describe('POST /api/reviews 한 줄 추천 저장 API', () => {
     });
     assert.equal(noAnonRes.status, 400);
   });
+
+  it('같은 익명 ID가 같은 가게에 오늘 다시 한 줄 추천을 남기면 409를 반환한다', async () => {
+    const targetPlace = { ...samplePlace, id: '77777771' };
+
+    const firstRes = await fetch(`${baseUrl}/api/reviews`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({
+        place: targetPlace,
+        text: '첫 번째 한 줄 추천입니다',
+        anonId: 'anon-dup-user',
+      }),
+    });
+    assert.equal(firstRes.status, 201);
+
+    const secondRes = await fetch(`${baseUrl}/api/reviews`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({
+        place: targetPlace,
+        text: '같은 날 두 번째 추천 시도',
+        anonId: 'anon-dup-user',
+      }),
+    });
+    assert.equal(secondRes.status, 409);
+
+    const body = await secondRes.json();
+    assert.ok(body.error);
+    assert.equal(store.getReviewsByPlace('77777771').length, 1);
+  });
+
+  it('같은 날이라도 다른 가게이거나 다른 익명 ID면 저장된다', async () => {
+    const placeA = { ...samplePlace, id: '77777772' };
+    const placeB = { ...samplePlace, id: '77777773' };
+
+    const res1 = await fetch(`${baseUrl}/api/reviews`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({
+        place: placeA,
+        text: 'A 가게 첫 추천 문장',
+        anonId: 'anon-user-a',
+      }),
+    });
+    assert.equal(res1.status, 201);
+
+    // 같은 사람, 다른 가게
+    const res2 = await fetch(`${baseUrl}/api/reviews`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({
+        place: placeB,
+        text: 'B 가게 첫 추천 문장',
+        anonId: 'anon-user-a',
+      }),
+    });
+    assert.equal(res2.status, 201);
+
+    // 다른 사람, 같은 가게
+    const res3 = await fetch(`${baseUrl}/api/reviews`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({
+        place: placeA,
+        text: 'A 가게 다른 사람 추천',
+        anonId: 'anon-user-b',
+      }),
+    });
+    assert.equal(res3.status, 201);
+  });
 });

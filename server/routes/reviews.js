@@ -2,6 +2,7 @@ const express = require('express');
 
 const store = require('../store');
 const { validateReviewInput } = require('../../shared/reviewValidator');
+const { isDuplicateToday } = require('../../shared/duplicateLimit');
 
 const router = express.Router();
 
@@ -50,6 +51,12 @@ router.post('/', (req, res) => {
   }
 
   const placeId = place.id.trim();
+  const trimmedAnonId = anonId.trim();
+
+  if (isDuplicateToday(store.getReviewsByPlace(placeId), trimmedAnonId, placeId, new Date())) {
+    res.status(409).json({ error: '오늘은 이미 이 가게에 한 줄 추천을 남겼습니다.' });
+    return;
+  }
 
   store.addPlace({
     id: placeId,
@@ -64,7 +71,7 @@ router.post('/', (req, res) => {
     text: result.value.text,
     price: result.value.price,
     tags: result.value.tags,
-    anonId: anonId.trim(),
+    anonId: trimmedAnonId,
   });
 
   const { anonId: _excluded, ...publicReview } = savedReview;
