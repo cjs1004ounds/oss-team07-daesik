@@ -118,7 +118,7 @@
 | R8 | `shared/voteTally.js` | 21 |
 | R9 | `shared/searchCache.js` | 14 |
 
-R7과 R8은 함수만 들어와 있고 API에는 아직 붙지 않았습니다. R1~R5와 R10은 아직입니다.
+R7은 한 줄 추천 저장(`POST /api/reviews`)에 붙었고, R8은 함수만 들어와 있습니다. R1~R5와 R10은 아직입니다.
 
 ## 서버
 
@@ -143,7 +143,7 @@ Express 서버
 | GET | /api/places/search?q= | 카카오 로컬 API로 가게 검색 (R9) | 됨 |
 | GET | /api/places | 기록이 있는 가게 목록. 필터와 정렬 (R1~R5) | 아직 |
 | GET | /api/places/:id | 가게 하나의 기록 수, 비율, 한 줄 추천 | 아직 |
-| POST | /api/reviews | 한 줄 추천 저장 (R6, R7) | 됨. R7은 아직 안 붙음 |
+| POST | /api/reviews | 한 줄 추천 저장 (R6, R7) | 됨 |
 | POST | /api/reviews/draft | 한 줄을 받아 가격과 태그 초안을 돌려줌 (LLM, R10) | 아직 |
 | POST | /api/visits | "또 갈래요" 또는 "글쎄요" 저장 (R7) | 아직 |
 | POST | /api/rooms | 방 만들기 | 아직 |
@@ -250,7 +250,7 @@ https://daesik.duckdns.org 에 올라가 있습니다. 만든 순서와 다시 �
 - [ ] 지도에서 추천 보기 (가게 마커, 가게 상세)
 - [ ] 시드 데이터
 - [ ] 필터와 정렬
-- [ ] 하루 한 번 제한 (R7. 함수는 들어왔고, 저장 API에 붙이는 일은 #72)
+- [ ] 하루 한 번 제한 (R7. 한 줄 추천에는 적용됨. 다녀왔어요는 아직)
 - [ ] 다녀왔어요
 - [ ] LLM으로 칸 채우기
 - [ ] 같이 정하기 (R8 투표 집계 함수는 들어옴)
