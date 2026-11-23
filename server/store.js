@@ -93,6 +93,12 @@ function addPlace(place) {
   return newPlace;
 }
 
+// 한 줄 추천 전부. 기록에 적힌 메뉴로 가게를 찾을 때 쓴다
+function getReviews() {
+  ensureLoaded();
+  return reviews.slice();
+}
+
 // 한 가게의 한 줄 추천 전부
 function getReviewsByPlace(placeId) {
   ensureLoaded();
@@ -157,6 +163,7 @@ module.exports = {
   getPlaces,
   getPlace,
   addPlace,
+  getReviews,
   getReviewsByPlace,
   addReview,
   getVerification,

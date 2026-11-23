@@ -126,3 +126,12 @@
 .verify-box.is-verified .verify-note {
   display: none;
 }
+
+/* 우리 기록으로 찾은 가게 표시 */
+.place-record {
+  display: block;
+  margin-top: 2px;
+  font-size: 13px;
+  font-weight: 700;
+  color: #2a6fdb;
+}

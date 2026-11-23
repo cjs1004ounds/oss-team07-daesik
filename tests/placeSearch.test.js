@@ -1,15 +1,27 @@
 const test = require('node:test');
 const assert = require('node:assert');
+const fs = require('fs');
+const os = require('os');
+const path = require('path');
 
 const app = require('../server/app');
 const kakao = require('../server/kakao');
+const store = require('../server/store');
 
 // 실제 카카오 API는 부르지 않는다.
 // kakao.searchPlaces를 가짜 함수로 바꿔 놓고 몇 번 불렸는지 센다
 let server;
 let baseUrl;
 
+let dataDir;
+
 test.before(async () => {
+  // 기록으로 찾기가 실제 data 폴더를 읽지 않게, 빈 임시 폴더로 시작한다
+  dataDir = fs.mkdtempSync(path.join(os.tmpdir(), 'place-search-test-'));
+  process.env.DATA_DIR = path.join(dataDir, 'runtime');
+  process.env.SEED_DIR = path.join(dataDir, 'seed');
+  store.load();
+
   await new Promise((resolve) => {
     server = app.listen(0, resolve);
   });
@@ -18,6 +30,7 @@ test.before(async () => {
 
 test.after(() => {
   server.close();
+  fs.rmSync(dataDir, { recursive: true, force: true });
 });
 
 test.afterEach(() => {
@@ -126,4 +139,47 @@ test('도로명 주소가 비어 있으면 지번 주소를 쓴다', () => {
   });
 
   assert.strictEqual(place.address, '서울 노원구 테스트동 1');
+});
+
+// 기록에 적힌 메뉴로 찾기
+
+function addRecord(place, text) {
+  store.addPlace(place);
+  store.addReview({ placeId: place.id, text: text, price: null, tags: [], anonId: 'anon-test' });
+}
+
+const RECORD_PLACE = { id: '500', name: '기록식당', lat: 37.6203, lng: 127.0584, category: '음식점 > 일식 > 돈까스,우동' };
+
+test('기록에 검색어가 적힌 가게가 카카오 결과 앞에 붙는다', async () => {
+  addRecord(RECORD_PLACE, '두루치기 7천원인데 양 많음');
+  test.mock.method(kakao, 'searchPlaces', async () => FAKE_PLACES);
+
+  const body = await (await search('두루치기')).json();
+
+  assert.deepStrictEqual(body.places.map((p) => p.id), ['500', '1']);
+  assert.strictEqual(body.places[0].fromRecords, true);
+  assert.strictEqual(body.places[1].fromRecords, undefined);
+});
+
+test('카카오 결과를 저장해 둔 뒤에 남긴 기록도 바로 찾힌다', async () => {
+  test.mock.method(kakao, 'searchPlaces', async () => FAKE_PLACES);
+  const before = await (await search('오므라이스')).json();
+  addRecord({ ...RECORD_PLACE, id: '501', name: '새기록식당' }, '오므라이스 소스 진함');
+  const after = await (await search('오므라이스')).json();
+
+  assert.deepStrictEqual(before.places.map((p) => p.id), ['1']);
+  assert.deepStrictEqual(after.places.map((p) => p.id), ['501', '1']);
+});
+
+test('카카오 호출이 실패해도 기록으로 찾은 가게가 있으면 200으로 돌려준다', async () => {
+  addRecord({ ...RECORD_PLACE, id: '502', name: '쫄면집' }, '쫄면 새콤달콤');
+  test.mock.method(kakao, 'searchPlaces', async () => {
+    throw new Error('테스트용 실패');
+  });
+
+  const res = await search('쫄면');
+  const body = await res.json();
+
+  assert.strictEqual(res.status, 200);
+  assert.deepStrictEqual(body.places.map((p) => p.id), ['502']);
 });
