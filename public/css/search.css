@@ -86,3 +86,43 @@
   font-size: 13px;
   color: #666;
 }
+
+/* 교내 인증 칸. 검색 칸 위에 옅은 배경으로 둔다 */
+.verify-box {
+  margin: 4px 0 20px;
+  padding: 12px 14px;
+  border: 1px solid #e5e5e5;
+  border-radius: 6px;
+  background: #f7f7f7;
+}
+
+.verify-status {
+  margin: 0 0 8px;
+  font-size: 14px;
+}
+
+/* 인증된 뒤에는 상태 글자를 강조색으로 */
+.verify-box.is-verified .verify-status {
+  margin: 0;
+  color: #2a6fdb;
+  font-weight: 700;
+}
+
+#verify-button {
+  padding: 6px 12px;
+  font-size: 14px;
+}
+
+/* 공통 스타일의 button { display: inline-block } 이 hidden을 덮어쓰지 않게 한다 */
+#verify-button[hidden] {
+  display: none;
+}
+
+.verify-note {
+  margin: 8px 0 0;
+}
+
+/* 인증된 뒤에는 안내 문구를 숨겨서 칸을 작게 한다 */
+.verify-box.is-verified .verify-note {
+  display: none;
+}
