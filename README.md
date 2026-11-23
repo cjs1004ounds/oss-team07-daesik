@@ -191,8 +191,8 @@ Express 서버
 | GET | /api/health | 서버가 살아 있는지 | 됨 |
 | GET | /api/config | 화면에 필요한 설정. 지금은 카카오맵 JavaScript 키 | 됨 |
 | GET | /api/places/search?q= | 카카오 로컬 API로 가게 검색 (R9) | 됨 |
-| GET | /api/places | 기록이 있는 가게 목록. 필터와 정렬 (R1~R5) | 아직 |
-| GET | /api/places/:id | 가게 하나의 기록 수, 비율, 한 줄 추천 | 아직 |
+| GET | /api/places | 기록이 있는 가게 목록. 필터와 정렬 (R1~R5) | 됨(필터와 정력은 아직) |
+| GET | /api/places/:id | 가게 하나의 기록 수, 비율, 한 줄 추천 | 됨(비율은 아직) |
 | POST | /api/reviews | 한 줄 추천 저장 (R6, R7) | 됨 |
 | POST | /api/reviews/draft | 한 줄을 받아 가격과 태그 초안을 돌려줌 (LLM, R10) | 아직 |
 | POST | /api/visits | "또 갈래요" 또는 "글쎄요" 저장 (R7) | 아직 |
