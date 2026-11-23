@@ -57,7 +57,8 @@ function showMessage(text) {
 }
 
 // 가게마다 버튼을 하나씩 만들어 목록에 넣는다.
-// 가게 이름 같은 값은 textContent로 넣어서 HTML로 해석되지 않게 한다
+// 가게 이름 같은 값은 textContent로 넣어서 HTML로 해석되지 않게 한다.
+// 우리 기록으로 찾은 가게(fromRecords)에는 그렇다고 한 줄 더 보여 준다
 function showResults(places) {
   for (const place of places) {
     const name = document.createElement('strong');
@@ -73,15 +74,27 @@ function showResults(places) {
     title.className = 'place-title';
     title.append(name, category);
 
-    // 둘째 줄: 주소
-    const address = document.createElement('span');
-    address.className = 'place-address';
-    address.textContent = place.address;
-
     const placeButton = document.createElement('button');
     placeButton.type = 'button';
     placeButton.className = 'place-button';
-    placeButton.append(title, address);
+    placeButton.append(title);
+
+    // 기록으로 찾은 가게 표시
+    if (place.fromRecords) {
+      const record = document.createElement('span');
+      record.className = 'place-record';
+      record.textContent = '한 줄 추천에서 찾음';
+      placeButton.append(record);
+    }
+
+    // 주소. 기록으로만 찾은 가게는 주소를 저장하지 않아서 없다
+    if (place.address) {
+      const address = document.createElement('span');
+      address.className = 'place-address';
+      address.textContent = place.address;
+      placeButton.append(address);
+    }
+
     placeButton.addEventListener('click', () => selectPlace(place));
 
     const item = document.createElement('li');
