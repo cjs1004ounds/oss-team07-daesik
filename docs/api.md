@@ -186,6 +186,62 @@
 - 없는 가게면 404
 - 응답에는 `anonId`를 넣지 않습니다.
 
+## POST /api/verify
+
+교내 인증입니다. 학교 와이파이로 접속했으면 위치 없이 통과하고(R12), 아니면 보낸 위치로 판정합니다(R11). 한 번 인증하면 30일 유지됩니다(R13).
+
+요청
+
+```json
+{ "anonId": "브라우저가 만든 익명 ID", "lat": 37.6201, "lng": 127.058, "accuracy": 35 }
+```
+
+- `lat`, `lng`, `accuracy`는 브라우저 위치(`navigator.geolocation`)에서 받은 값입니다. `accuracy`는 오차(m)입니다.
+- 화면은 먼저 `anonId`만 보냅니다. 학교 와이파이면 여기서 끝나서 위치 권한을 묻지 않아도 됩니다.
+
+응답 200
+
+```json
+{
+  "verified": true,
+  "method": "wifi",
+  "verifiedAt": "2026-11-23T03:00:00.000Z",
+  "expiresAt": "2026-12-23T03:00:00.000Z"
+}
+```
+
+- `method`는 `wifi` 또는 `location`입니다.
+- 학교 와이파이가 아니고 위치도 안 보냈으면 403과 `"needLocation": true`. 화면은 이때 위치를 물어보고 다시 보냅니다.
+- 캠퍼스 밖이거나 오차가 150m보다 크면 403과 이유
+- 익명 ID가 없거나 좌표가 숫자가 아니면 400
+- 다시 인증하면 시각과 방법이 새로 바뀝니다.
+
+저장하는 것은 아래 세 가지뿐입니다. 좌표와 IP는 판정에만 쓰고 저장하지 않습니다.
+
+```json
+{ "anonId": "브라우저가 만든 익명 ID", "method": "wifi", "verifiedAt": "2026-11-23T03:00:00.000Z" }
+```
+
+학교 대역은 서버 환경 변수 `CAMPUS_IP_PREFIXES`로 정합니다. 서버는 nginx가 붙여 주는 `X-Forwarded-For`에서 실제 접속 IP를 읽습니다(`server/app.js`의 `trust proxy`).
+
+## GET /api/verify/:anonId
+
+이 익명 ID가 지금 교내 인증돼 있는지입니다.
+
+응답 200
+
+```json
+{
+  "verified": true,
+  "method": "wifi",
+  "verifiedAt": "2026-11-23T03:00:00.000Z",
+  "expiresAt": "2026-12-23T03:00:00.000Z"
+}
+```
+
+- 인증한 적이 없거나 30일이 지났으면 `{ "verified": false }`
+- 다른 API에서 인증 여부가 필요하면 저장 모듈의 `store.isVerified(anonId)`를 씁니다.
+
 ## 익명 ID
 
 로그인이 없어서 브라우저마다 무작위 ID를 하나 만들어 씁니다. 같은 사람이 같은 가게에 여러 번 남기는 것을 막을 때(R7), 투표를 한 사람 한 표로 셀 때(R8) 씁니다.
