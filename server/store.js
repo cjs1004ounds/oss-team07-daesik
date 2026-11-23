@@ -1,4 +1,4 @@
-// 저장 모듈. 가게와 한 줄 추천을 JSON 파일에 읽고 쓴다.
+// 저장 모듈. 가게, 한 줄 추천, 교내 인증을 JSON 파일에 읽고 쓴다.
 // 파일을 직접 여는 코드는 이 파일에만 둔다.
 // 나중에 저장 방식을 바꾸게 되면(예: 호스팅이 파일을 지우는 경우) 이 파일만 고치면 된다.
 
@@ -6,9 +6,12 @@ const fs = require('fs');
 const path = require('path');
 const crypto = require('crypto');
 
+const { isVerificationActive } = require('../shared/campusVerify');
+
 // 켤 때 파일에서 읽어 와 여기에 들고 있다가, 추가할 때마다 파일에 다시 쓴다
 let places = null;
 let reviews = null;
+let verifications = null;
 
 // 실행 중에 쓰는 파일이 있는 폴더. 테스트에서는 DATA_DIR로 임시 폴더를 가리킨다
 function getDataDir() {
@@ -46,11 +49,12 @@ function writeList(fileName, list) {
 function load() {
   places = readList('places.json');
   reviews = readList('reviews.json');
+  verifications = readList('verifications.json');
 }
 
 // load()를 안 부르고 쓰더라도 동작하게 한다
 function ensureLoaded() {
-  if (places === null || reviews === null) {
+  if (places === null || reviews === null || verifications === null) {
     load();
   }
 }
@@ -114,6 +118,40 @@ function addReview(review) {
   return newReview;
 }
 
+// 익명 ID 하나의 교내 인증 기록. 없으면 null
+function getVerification(anonId) {
+  ensureLoaded();
+  const found = verifications.find((verification) => verification.anonId === anonId);
+  return found || null;
+}
+
+// 교내 인증을 저장한다. 같은 익명 ID가 다시 인증하면 시각과 방법을 새로 바꾼다.
+// 좌표와 IP는 받지도 않고 저장하지도 않는다 (README "개인정보")
+function saveVerification(anonId, method) {
+  ensureLoaded();
+
+  const verification = {
+    anonId: anonId,
+    method: method,
+    verifiedAt: new Date().toISOString(),
+  };
+
+  const index = verifications.findIndex((item) => item.anonId === anonId);
+  if (index === -1) {
+    verifications.push(verification);
+  } else {
+    verifications[index] = verification;
+  }
+  writeList('verifications.json', verifications);
+  return verification;
+}
+
+// 이 익명 ID가 지금 교내 인증돼 있는지 (R13).
+// 기록을 저장할 때 인증 여부를 붙이거나, 비율에 인증된 기록만 넣을 때 쓴다
+function isVerified(anonId, now) {
+  return isVerificationActive(getVerification(anonId), now || new Date());
+}
+
 module.exports = {
   load,
   getPlaces,
@@ -121,4 +159,7 @@ module.exports = {
   addPlace,
   getReviewsByPlace,
   addReview,
+  getVerification,
+  saveVerification,
+  isVerified,
 };

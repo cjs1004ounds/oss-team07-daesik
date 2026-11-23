@@ -124,3 +124,30 @@ test('시드로 시작한 뒤 추가해도 시드에 있던 것이 남는다', (
 
   assert.strictEqual(store.getPlaces().length, 2);
 });
+
+test('교내 인증을 저장하면 익명 ID로 읽히고 지금 인증된 것으로 본다', () => {
+  useTempDirs();
+  store.load();
+
+  assert.strictEqual(store.getVerification('anon-1'), null);
+  assert.strictEqual(store.isVerified('anon-1'), false);
+
+  const saved = store.saveVerification('anon-1', 'location');
+  assert.strictEqual(saved.method, 'location');
+  assert.strictEqual(typeof saved.verifiedAt, 'string');
+  assert.deepStrictEqual(store.getVerification('anon-1'), saved);
+  assert.strictEqual(store.isVerified('anon-1'), true);
+  assert.strictEqual(store.isVerified('anon-2'), false);
+});
+
+test('교내 인증은 다시 읽어 와도 남고, 30일이 지나면 인증되지 않은 것으로 본다', () => {
+  useTempDirs();
+  store.load();
+
+  store.saveVerification('anon-1', 'wifi');
+  store.load();
+
+  const later = new Date(Date.now() + 31 * 24 * 60 * 60 * 1000);
+  assert.strictEqual(store.getVerification('anon-1').method, 'wifi');
+  assert.strictEqual(store.isVerified('anon-1', later), false);
+});

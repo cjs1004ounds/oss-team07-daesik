@@ -8,12 +8,19 @@ const configRouter = require('./routes/config');
 const healthRouter = require('./routes/health');
 const placesRouter = require('./routes/places');
 const reviewsRouter = require('./routes/reviews');
+const verifyRouter = require('./routes/verify');
 
 const app = express();
 
 // 응답에 "X-Powered-By: Express" 헤더를 붙이지 않는다.
 // 어떤 프레임워크를 쓰는지 밖에 알려 줄 필요가 없다
 app.disable('x-powered-by');
+
+// 배포 서버에서는 nginx가 요청을 받아 넘겨주기 때문에, 그대로 두면 접속 IP가 nginx나 Docker의 주소로 보인다.
+// nginx가 붙여 주는 X-Forwarded-For에서 실제 접속 IP를 읽게 한다 (교내 와이파이 판정, R12).
+// 믿는 것은 서버 자신(loopback)과 Docker 내부망(uniquelocal)에서 온 헤더뿐이라,
+// 밖에서 이 헤더를 지어내 보내도 nginx가 붙인 실제 IP가 쓰인다
+app.set('trust proxy', ['loopback', 'uniquelocal']);
 
 // 요청 본문의 JSON을 req.body로 읽는다
 app.use(express.json());
@@ -26,6 +33,7 @@ app.use('/api/health', healthRouter);
 app.use('/api/config', configRouter);
 app.use('/api/places', placesRouter);
 app.use('/api/reviews', reviewsRouter);
+app.use('/api/verify', verifyRouter);
 
 // 없는 API 경로로 오면 JSON으로 404를 돌려준다
 app.use('/api', (req, res) => {
