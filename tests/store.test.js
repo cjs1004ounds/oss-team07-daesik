@@ -190,3 +190,15 @@ test('방을 바꿔 저장하면 다시 읽어 와도 남고, 읽은 값을 고�
   assert.strictEqual(store.getRoom('ABCDEF').votes.length, 1);
   assert.strictEqual(store.updateRoom('ZZZZZZ', { closed: true }), null);
 });
+
+test('한 줄 추천을 추가하면 저장 시점의 교내 인증 여부(verified)가 함께 기록된다', () => {
+  useTempDirs();
+  store.load();
+
+  const unverifiedSaved = store.addReview(sampleReview);
+  assert.strictEqual(unverifiedSaved.verified, false);
+
+  store.saveVerification('anon-verified', 'wifi');
+  const verifiedSaved = store.addReview({ ...sampleReview, anonId: 'anon-verified' });
+  assert.strictEqual(verifiedSaved.verified, true);
+});

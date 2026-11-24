@@ -244,4 +244,23 @@ describe('POST /api/reviews 한 줄 추천 저장 API', () => {
     });
     assert.equal(res3.status, 201);
   });
+
+  it('교내 인증을 하지 않은 익명 ID로 저장하면 verified가 false다', async () => {
+    const targetPlace = { ...samplePlace, id: '88887771' };
+
+    const res = await fetch(`${baseUrl}/api/reviews`, { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ place: targetPlace, text: '미인증 사용자 한 줄 추천 테스트', anonId: 'anon-unverified-review', }), });  assert.equal(res.status, 201); const body = await res.json(); assert.equal(body.review.verified, false); assert.equal(store.getReviewsByPlace('88887771')[0].verified, false); });  it('교내 인증된 익명 ID로 저장하면 verified가 true다', async () => { const targetPlace = { ...samplePlace, id: '88887772' }; store.saveVerification('anon-verified-review', 'wifi');  const res = await fetch(`${baseUrl}/api/reviews`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({
+        place: targetPlace,
+        text: '교내 인증 사용자 한 줄 추천 테스트',
+        anonId: 'anon-verified-review',
+      }),
+    });
+
+    assert.equal(res.status, 201);
+    const body = await res.json();
+    assert.equal(body.review.verified, true);
+    assert.equal(store.getReviewsByPlace('88887772')[0].verified, true);
+  });
 });
