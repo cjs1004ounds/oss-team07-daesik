@@ -8,6 +8,7 @@ const configRouter = require('./routes/config');
 const healthRouter = require('./routes/health');
 const placesRouter = require('./routes/places');
 const reviewsRouter = require('./routes/reviews');
+const roomsRouter = require('./routes/rooms');
 const verifyRouter = require('./routes/verify');
 const visitsRouter = require('./routes/visits');
 
@@ -36,6 +37,7 @@ app.use('/api/places', placesRouter);
 app.use('/api/reviews', reviewsRouter);
 app.use('/api/verify', verifyRouter);
 app.use('/api/visits', visitsRouter);
+app.use('/api/rooms', roomsRouter);
 
 // 없는 API 경로로 오면 JSON으로 404를 돌려준다
 app.use('/api', (req, res) => {
