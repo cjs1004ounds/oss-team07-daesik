@@ -12,6 +12,7 @@ const { isVerificationActive } = require('../shared/campusVerify');
 let places = null;
 let reviews = null;
 let verifications = null;
+let visits = null;
 
 // 실행 중에 쓰는 파일이 있는 폴더. 테스트에서는 DATA_DIR로 임시 폴더를 가리킨다
 function getDataDir() {
@@ -50,11 +51,12 @@ function load() {
   places = readList('places.json');
   reviews = readList('reviews.json');
   verifications = readList('verifications.json');
+  visits = readList('visits.json');
 }
 
 // load()를 안 부르고 쓰더라도 동작하게 한다
 function ensureLoaded() {
-  if (places === null || reviews === null || verifications === null) {
+  if (places === null || reviews === null || verifications === null || visits === null) {
     load();
   }
 }
@@ -158,6 +160,37 @@ function isVerified(anonId, now) {
   return isVerificationActive(getVerification(anonId), now || new Date());
 }
 
+// 다녀왔어요 응답 전부
+function getVisits() {
+  ensureLoaded();
+  return visits.slice();
+}
+
+// 한 가게의 다녀왔어요 응답 전부
+function getVisitsByPlace(placeId) {
+  ensureLoaded();
+  return visits.filter((visit) => visit.placeId === placeId);
+}
+
+// 다녀왔어요("또 갈래요" / "글쎄요") 응답을 추가한다.
+// 저장할 때 교내 인증 상태(verified)를 함께 기록해 비율 계산(R14)에 쓴다
+function addVisit(visit) {
+  ensureLoaded();
+
+  const newVisit = {
+    id: crypto.randomUUID(),
+    placeId: visit.placeId,
+    again: visit.again,
+    anonId: visit.anonId,
+    roomCode: visit.roomCode || null,
+    verified: isVerified(visit.anonId),
+    createdAt: new Date().toISOString(),
+  };
+  visits.push(newVisit);
+  writeList('visits.json', visits);
+  return newVisit;
+}
+
 module.exports = {
   load,
   getPlaces,
@@ -169,4 +202,7 @@ module.exports = {
   getVerification,
   saveVerification,
   isVerified,
+  getVisits,
+  getVisitsByPlace,
+  addVisit,
 };
