@@ -151,3 +151,42 @@ test('교내 인증은 다시 읽어 와도 남고, 30일이 지나면 인증되
   assert.strictEqual(store.getVerification('anon-1').method, 'wifi');
   assert.strictEqual(store.isVerified('anon-1', later), false);
 });
+
+test('같이 정하기 방을 추가하면 코드로 읽히고 처음에는 표가 없다', () => {
+  useTempDirs();
+  store.load();
+
+  const candidates = [
+    { placeId: '1', name: '가', lat: 37.62, lng: 127.06, category: '음식점' },
+    { placeId: '2', name: '나', lat: 37.62, lng: 127.06, category: '음식점' },
+  ];
+  store.addRoom({ code: 'ABCDEF', candidates: candidates, ownerAnonId: 'owner' });
+
+  const room = store.getRoom('ABCDEF');
+  assert.deepStrictEqual(room.candidates, candidates);
+  assert.deepStrictEqual(room.votes, []);
+  assert.strictEqual(room.closed, false);
+  assert.strictEqual(room.winnerId, null);
+  assert.strictEqual(room.ownerAnonId, 'owner');
+  assert.strictEqual(store.getRoom('ZZZZZZ'), null);
+});
+
+test('방을 바꿔 저장하면 다시 읽어 와도 남고, 읽은 값을 고쳐도 저장된 방은 그대로다', () => {
+  useTempDirs();
+  store.load();
+
+  store.addRoom({ code: 'ABCDEF', candidates: [], ownerAnonId: 'owner' });
+  store.updateRoom('ABCDEF', { votes: [{ anonId: 'a', placeId: '1' }] });
+  store.updateRoom('ABCDEF', { closed: true, winnerId: '1' });
+  store.load();
+
+  const room = store.getRoom('ABCDEF');
+  assert.deepStrictEqual(room.votes, [{ anonId: 'a', placeId: '1' }]);
+  assert.strictEqual(room.closed, true);
+  assert.strictEqual(room.winnerId, '1');
+  assert.strictEqual(typeof room.closedAt, 'string');
+
+  room.votes.push({ anonId: 'b', placeId: '1' });
+  assert.strictEqual(store.getRoom('ABCDEF').votes.length, 1);
+  assert.strictEqual(store.updateRoom('ZZZZZZ', { closed: true }), null);
+});
