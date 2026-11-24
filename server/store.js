@@ -1,4 +1,4 @@
-// 저장 모듈. 가게, 한 줄 추천, 교내 인증을 JSON 파일에 읽고 쓴다.
+// 저장 모듈. 가게, 한 줄 추천, 교내 인증, 다녀왔어요 응답, 같이 정하기 방을 JSON 파일에 읽고 쓴다.
 // 파일을 직접 여는 코드는 이 파일에만 둔다.
 // 나중에 저장 방식을 바꾸게 되면(예: 호스팅이 파일을 지우는 경우) 이 파일만 고치면 된다.
 
@@ -13,6 +13,7 @@ let places = null;
 let reviews = null;
 let verifications = null;
 let visits = null;
+let rooms = null;
 
 // 실행 중에 쓰는 파일이 있는 폴더. 테스트에서는 DATA_DIR로 임시 폴더를 가리킨다
 function getDataDir() {
@@ -52,11 +53,12 @@ function load() {
   reviews = readList('reviews.json');
   verifications = readList('verifications.json');
   visits = readList('visits.json');
+  rooms = readList('rooms.json');
 }
 
 // load()를 안 부르고 쓰더라도 동작하게 한다
 function ensureLoaded() {
-  if (places === null || reviews === null || verifications === null || visits === null) {
+  if (places === null || reviews === null || verifications === null || visits === null || rooms === null) {
     load();
   }
 }
@@ -191,6 +193,57 @@ function addVisit(visit) {
   return newVisit;
 }
 
+// 같이 정하기 방 하나. 없으면 null.
+// 돌려준 값을 고쳐도 저장된 방은 바뀌지 않는다. 바꾸려면 updateRoom을 부른다
+function getRoom(code) {
+  ensureLoaded();
+  const found = rooms.find((room) => room.code === code);
+  return found ? structuredClone(found) : null;
+}
+
+// 방을 추가한다. 방 코드가 겹치지 않는지는 부르는 쪽에서 getRoom으로 먼저 본다
+function addRoom(room) {
+  ensureLoaded();
+
+  const newRoom = {
+    code: room.code,
+    candidates: room.candidates,
+    votes: [],
+    closed: false,
+    winnerId: null,
+    ownerAnonId: room.ownerAnonId,
+    createdAt: new Date().toISOString(),
+    closedAt: null,
+  };
+  rooms.push(newRoom);
+  writeList('rooms.json', rooms);
+  return structuredClone(newRoom);
+}
+
+// 방의 표, 마감 여부, 정해진 가게를 바꿔 저장한다. 없는 방이면 null
+function updateRoom(code, changes) {
+  ensureLoaded();
+
+  const index = rooms.findIndex((room) => room.code === code);
+  if (index === -1) {
+    return null;
+  }
+
+  const room = rooms[index];
+  if (changes.votes !== undefined) {
+    room.votes = changes.votes;
+  }
+  if (changes.closed !== undefined) {
+    room.closed = changes.closed;
+    room.closedAt = changes.closed ? new Date().toISOString() : null;
+  }
+  if (changes.winnerId !== undefined) {
+    room.winnerId = changes.winnerId;
+  }
+  writeList('rooms.json', rooms);
+  return structuredClone(room);
+}
+
 module.exports = {
   load,
   getPlaces,
@@ -205,4 +258,7 @@ module.exports = {
   getVisits,
   getVisitsByPlace,
   addVisit,
+  getRoom,
+  addRoom,
+  updateRoom,
 };
