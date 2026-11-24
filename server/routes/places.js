@@ -44,7 +44,56 @@ router.get('/search', async (req, res) => {
   }
 });
 
-// GET /api/places 와 GET /api/places/:id 가 들어올 자리.
-// /:id 는 /search 보다 아래에 둬야 /search 가 가게 id로 읽히지 않는다
+// 화면에 내보낼 가게 값. 저장된 가게에 다른 값이 더 붙어 있어도 이것만 내보낸다
+function toPlaceResponse(place) {
+  return {
+    id: place.id,
+    name: place.name,
+    lat: place.lat,
+    lng: place.lng,
+    category: place.category,
+  };
+}
+
+// 화면에 내보낼 한 줄 추천 값. 익명 ID(anonId)는 내보내지 않는다
+function toReviewResponse(review) {
+  return {
+    id: review.id,
+    text: review.text,
+    price: review.price,
+    tags: review.tags,
+    createdAt: review.createdAt,
+  };
+}
+
+// GET /api/places
+// 기록이 있는 가게 목록. 가게마다 한 줄 추천 수(reviewCount)를 붙인다.
+// 필터와 정렬(R1~R5)은 아직 없고 저장된 가게를 전부 돌려준다
+router.get('/', (req, res) => {
+  const places = store.getPlaces().map((place) => ({
+    ...toPlaceResponse(place),
+    reviewCount: store.getReviewsByPlace(place.id).length,
+  }));
+
+  res.json({ places });
+});
+
+// GET /api/places/:id
+// 가게 하나와 그 가게의 한 줄 추천. 추천은 최근에 남긴 것이 앞에 온다.
+// /search 보다 아래에 둬야 /search 가 가게 id로 읽히지 않는다
+router.get('/:id', (req, res) => {
+  const place = store.getPlace(req.params.id);
+  if (!place) {
+    res.status(404).json({ error: '없는 가게입니다.' });
+    return;
+  }
+
+  const reviews = store
+    .getReviewsByPlace(place.id)
+    .sort((a, b) => b.createdAt.localeCompare(a.createdAt))
+    .map(toReviewResponse);
+
+  res.json({ place: toPlaceResponse(place), reviews });
+});
 
 module.exports = router;
