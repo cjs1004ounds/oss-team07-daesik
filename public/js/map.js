@@ -231,10 +231,60 @@ async function showPlaceDetail(placeId) {
     meta.textContent = extras.join(' · ');
     item.append(meta);
 
+    // 신고 (R15). 누르면 확인을 받고 POST /api/reports
+    const reportButton = document.createElement('button');
+    reportButton.type = 'button';
+    reportButton.className = 'report-button';
+    reportButton.textContent = '신고';
+    reportButton.addEventListener('click', () => reportReview(review.id, item, reportButton));
+    item.append(reportButton);
+
     list.append(item);
   }
 
   panelEl.append(list);
+}
+
+// 한 줄 추천을 신고한다. 숨겨지면 목록에서 바로 빼고, 아니면 신고했다고만 보여 준다
+async function reportReview(reviewId, item, button) {
+  if (!confirm('이 한 줄 추천을 신고할까요? 욕설, 개인정보, 광고, 허위 사실 같은 글을 신고해 주세요.')) {
+    return;
+  }
+
+  button.disabled = true;
+  try {
+    const res = await fetch('/api/reports', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ reviewId: reviewId, anonId: getOrCreateAnonId() }),
+    });
+    const body = await res.json();
+
+    if (res.ok && body.hidden) {
+      item.replaceChildren();
+      const notice = document.createElement('p');
+      notice.className = 'sub';
+      notice.textContent = '신고가 반영돼 이 한 줄 추천을 숨겼습니다.';
+      item.append(notice);
+      return;
+    }
+    button.textContent = res.ok ? '신고함' : (body.error || '신고하지 못했습니다.');
+  } catch (err) {
+    button.textContent = '신고하지 못했습니다. 다시 눌러 주세요.';
+    button.disabled = false;
+  }
+}
+
+// 익명 ID. 한 줄 추천 작성 화면(js/review.js)과 같은 이름으로 localStorage에 둔다 (docs/api.md "익명 ID")
+function getOrCreateAnonId() {
+  let anonId = localStorage.getItem('anonId');
+  if (!anonId) {
+    anonId = typeof crypto.randomUUID === 'function'
+      ? crypto.randomUUID()
+      : 'anon-' + Date.now() + '-' + Math.random().toString(36).slice(2, 10);
+    localStorage.setItem('anonId', anonId);
+  }
+  return anonId;
 }
 
 function makeBackButton() {

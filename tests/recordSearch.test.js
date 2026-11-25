@@ -113,3 +113,9 @@ test('기록으로 찾은 가게가 없으면 카카오 결과가 그대로다',
   assert.deepStrictEqual(mergeResults([], kakaoPlaces), kakaoPlaces);
   assert.deepStrictEqual(mergeResults([], []), []);
 });
+
+test('신고로 숨긴 한 줄 추천은 찾지 않는다', () => {
+  const hidden = { placeId: '1', text: '제육 맛집', hidden: true };
+  assert.strictEqual(reviewMatches(hidden, '제육'), false);
+  assert.deepStrictEqual(findPlacesByRecords(places, [hidden], '제육'), []);
+});

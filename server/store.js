@@ -1,4 +1,4 @@
-// 저장 모듈. 가게, 한 줄 추천, 교내 인증, 다녀왔어요 응답, 같이 정하기 방을 JSON 파일에 읽고 쓴다.
+// 저장 모듈. 가게, 한 줄 추천, 교내 인증, 다녀왔어요 응답, 같이 정하기 방, 신고를 JSON 파일에 읽고 쓴다.
 // 파일을 직접 여는 코드는 이 파일에만 둔다.
 // 나중에 저장 방식을 바꾸게 되면(예: 호스팅이 파일을 지우는 경우) 이 파일만 고치면 된다.
 
@@ -14,6 +14,7 @@ let reviews = null;
 let verifications = null;
 let visits = null;
 let rooms = null;
+let reports = null;
 
 // 실행 중에 쓰는 파일이 있는 폴더. 테스트에서는 DATA_DIR로 임시 폴더를 가리킨다
 function getDataDir() {
@@ -54,11 +55,12 @@ function load() {
   verifications = readList('verifications.json');
   visits = readList('visits.json');
   rooms = readList('rooms.json');
+  reports = readList('reports.json');
 }
 
 // load()를 안 부르고 쓰더라도 동작하게 한다
 function ensureLoaded() {
-  if (places === null || reviews === null || verifications === null || visits === null || rooms === null) {
+  if (places === null || reviews === null || verifications === null || visits === null || rooms === null || reports === null) {
     load();
   }
 }
@@ -245,6 +247,66 @@ function updateRoom(code, changes) {
   return structuredClone(room);
 }
 
+// 한 줄 추천 하나. 없으면 null
+function getReview(id) {
+  ensureLoaded();
+  const found = reviews.find((review) => review.id === id);
+  return found || null;
+}
+
+// 한 줄 추천에 LLM 판단 결과를 적어 둔다. 글마다 한 번만 물어보려고 저장한다
+function setReviewModeration(id, moderation) {
+  ensureLoaded();
+  const review = reviews.find((item) => item.id === id);
+  if (!review) {
+    return null;
+  }
+  review.moderation = {
+    verdict: moderation.verdict,
+    reason: moderation.reason,
+    checkedAt: new Date().toISOString(),
+  };
+  writeList('reviews.json', reviews);
+  return review;
+}
+
+// 한 줄 추천을 숨긴다 (R15). 지우지 않고 표시만 해 둬서 나중에 되돌릴 수 있다.
+// reason은 'reports'(신고 수) 또는 'llm'(LLM 판단)
+function hideReview(id, reason) {
+  ensureLoaded();
+  const review = reviews.find((item) => item.id === id);
+  if (!review) {
+    return null;
+  }
+  review.hidden = true;
+  review.hiddenReason = reason;
+  review.hiddenAt = new Date().toISOString();
+  writeList('reviews.json', reviews);
+  return review;
+}
+
+// 한 줄 추천 하나에 들어온 신고 전부
+function getReportsByReview(reviewId) {
+  ensureLoaded();
+  return reports.filter((report) => report.reviewId === reviewId);
+}
+
+// 신고를 추가한다. 신고할 때의 교내 인증 상태(verified)를 같이 적어 둔다 (R15)
+function addReport(report) {
+  ensureLoaded();
+
+  const newReport = {
+    id: crypto.randomUUID(),
+    reviewId: report.reviewId,
+    anonId: report.anonId,
+    verified: isVerified(report.anonId),
+    createdAt: new Date().toISOString(),
+  };
+  reports.push(newReport);
+  writeList('reports.json', reports);
+  return newReport;
+}
+
 module.exports = {
   load,
   getPlaces,
@@ -262,4 +324,9 @@ module.exports = {
   getRoom,
   addRoom,
   updateRoom,
+  getReview,
+  setReviewModeration,
+  hideReview,
+  getReportsByReview,
+  addReport,
 };
