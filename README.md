@@ -152,6 +152,7 @@
 | 규칙 | 파일 | 테스트 수 |
 | --- | --- | --- |
 | R1~R3 | `shared/placeFilter.js` | 22 |
+| R5 | `shared/placeSort.js` | 9 |
 | R6 | `shared/reviewValidator.js` | 10 |
 | R7 | `shared/duplicateLimit.js` | 18 |
 | R8 | `shared/voteTally.js` | 21 |
@@ -163,7 +164,7 @@
 | R15 | `shared/reportRules.js` | 9 |
 | LLM 판단 검사 | `shared/moderation.js` | 7 |
 
-R7은 한 줄 추천 저장(`POST /api/reviews`)과 다녀왔어요 저장(`POST /api/visits`)에, R8은 같이 정하기 마감에, R11~R13은 교내 인증에, R14는 가게 목록과 상세의 비율과 가격에, R15는 신고에, R1~R3는 가게 목록(`GET /api/places`)의 도보 시간과 필터에 붙었습니다. 기록으로 찾기, 같이 정하기 방 규칙, LLM 판단 검사는 번호를 붙이지 않은 검사 함수입니다. R3의 가격 평균과 R4의 비율은 R14 가중치로 계산하고, 정렬(R5)과 R10은 아직입니다.
+R7은 한 줄 추천 저장(`POST /api/reviews`)과 다녀왔어요 저장(`POST /api/visits`)에, R8은 같이 정하기 마감에, R11~R13은 교내 인증에, R14는 가게 목록과 상세의 비율과 가격에, R15는 신고에, R1~R3와 R5는 가게 목록(`GET /api/places`)의 도보 시간, 필터, 정렬에 붙었습니다. 기록으로 찾기, 같이 정하기 방 규칙, LLM 판단 검사는 번호를 붙이지 않은 검사 함수입니다. R3의 가격 평균과 R4의 비율은 R14 가중치로 계산하고, R10은 아직입니다.
 
 중간발표 뒤에 더한 규칙입니다. 모두 아래 숫자로 들어왔습니다.
 
@@ -198,7 +199,7 @@ Express 서버
 | GET | /api/health | 서버가 살아 있는지 | 됨 |
 | GET | /api/config | 화면에 필요한 설정. 지금은 카카오맵 JavaScript 키 | 됨 |
 | GET | /api/places/search?q= | 카카오 로컬 API로 가게 검색 (R9) | 됨 |
-| GET | /api/places | 기록이 있는 가게 목록. 필터와 정렬 (R1~R5) | 됨(R1~R3 들어옴, 정렬은 아직) |
+| GET | /api/places | 기록이 있는 가게 목록. 필터와 정렬 (R1~R5) | 됨 |
 | GET | /api/places/:id | 가게 하나의 기록 수, 비율, 한 줄 추천 | 됨 |
 | POST | /api/reviews | 한 줄 추천 저장 (R6, R7) | 됨 |
 | POST | /api/reviews/draft | 한 줄을 받아 가격과 태그 초안을 돌려줌 (LLM, R10) | 아직 |
@@ -357,7 +358,7 @@ https://daesik.duckdns.org 에 올라가 있습니다. 만든 순서와 다시 �
 - [x] 첫 화면에 지도 띄우기
 - [x] 지도에서 추천 보기 (가게 마커, 가게 상세)
 - [ ] 시드 데이터
-- [ ] 필터와 정렬 (API의 필터 R1~R3는 됨. 정렬 R5와 지도 화면의 필터 칸은 아직)
+- [ ] 필터와 정렬 (API의 필터와 정렬 R1~R5는 됨. 지도 화면의 필터 칸은 아직)
 - [x] 하루 한 번 제한 (R7. 한 줄 추천과 다녀왔어요 모두)
 - [ ] 다녀왔어요 (API와 같이 정하기 화면에서는 됨. 지도 화면 버튼은 아직)
 - [ ] LLM으로 칸 채우기
