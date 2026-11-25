@@ -42,6 +42,78 @@
   margin-bottom: 0;
 }
 
+/* 지도 위의 가게 마커. 숫자는 그 가게의 한 줄 추천 수 */
+.place-marker {
+  min-width: 28px;
+  height: 28px;
+  padding: 0 8px;
+  border: 2px solid #fff;
+  border-radius: 999px;
+  background: #2a6fdb;
+  color: #fff;
+  font-size: 13px;
+  font-weight: bold;
+  box-shadow: 0 1px 4px rgba(0, 0, 0, 0.3);
+  cursor: pointer;
+}
+
+.place-marker:hover {
+  background: #1f5cbd;
+}
+
+/* 옆 칸의 가게 목록과 한 줄 추천 목록 */
+.place-list,
+.review-list {
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+
+.place-list-item {
+  display: block;
+  width: 100%;
+  padding: 10px 0;
+  border: none;
+  border-bottom: 1px solid #eee;
+  background: none;
+  color: inherit;
+  text-align: left;
+  cursor: pointer;
+}
+
+.place-list-item:hover strong {
+  color: #2a6fdb;
+}
+
+.place-list-item strong,
+.place-list-item span {
+  display: block;
+}
+
+.review-list li {
+  padding: 10px 0;
+  border-bottom: 1px solid #eee;
+}
+
+.review-list p {
+  margin: 0;
+}
+
+.review-text {
+  margin-bottom: 4px;
+  word-break: break-all;
+}
+
+/* 링크처럼 보이는 버튼 (목록으로) */
+.link-button {
+  margin-bottom: 8px;
+  padding: 0;
+  border: none;
+  background: none;
+  color: #2a6fdb;
+  cursor: pointer;
+}
+
 /* 작은 휴대폰 */
 @media (max-width: 360px) {
   .side-panel {
