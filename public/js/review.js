@@ -166,12 +166,19 @@ function getOrCreateAnonId() {
 }
 
 // 저장 전 검사. 문제 될 내용 목록을 돌려준다. 서버에 닿지 못하면 빈 목록이다
-async function checkReviewText(text) {
+async function checkReviewText(text, price) {
   try {
+    const place = selectedPlace || {};
     const res = await fetch('/api/reviews/check', {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ text: text, placeName: selectedPlace ? selectedPlace.name : '' }),
+      body: JSON.stringify({
+        text: text,
+        price: price,
+        placeName: place.name || '',
+        placeId: place.id || '',
+        category: place.category || '',
+      }),
     });
     if (!res.ok) {
       return [];
@@ -276,7 +283,20 @@ async function submitReview() {
 
   // 저장하기 전에 개인정보, 욕설, 광고 같은 내용이 있는지 검사한다 (POST /api/reviews/check).
   // 걸린 게 있으면 알려 주고 그래도 저장할지 묻는다. 검사가 실패해도 저장은 그대로 할 수 있다
-  const issues = await checkReviewText(trimmedText);
+  let price = priceResult.value;
+  let issues = await checkReviewText(trimmedText, price);
+
+  // 글에 적힌 가격과 가격 칸이 다르면 글의 가격으로 고칠지 먼저 묻는다 (R17)
+  const priceIssue = issues.find((issue) => issue.kind === 'price' && issue.suggestedPrice);
+  if (priceIssue) {
+    const suggested = priceIssue.suggestedPrice.toLocaleString('ko-KR');
+    if (confirm(priceIssue.message + '\n가격을 ' + suggested + '원으로 고칠까요?')) {
+      price = priceIssue.suggestedPrice;
+      priceInput.value = formatPrice(String(price));
+      issues = issues.filter((issue) => issue !== priceIssue);
+    }
+  }
+
   if (issues.length > 0) {
     const lines = issues.map((issue) => '- ' + issue.message).join('\n');
     if (!confirm('저장하기 전에 확인해 주세요.\n' + lines + '\n\n남긴 추천은 누구나 볼 수 있습니다. 그래도 저장할까요?')) {
@@ -296,7 +316,7 @@ async function submitReview() {
       body: JSON.stringify({
         place: selectedPlace,
         text: trimmedText,
-        price: priceResult.value,
+        price: price,
         tags: Array.from(selectedTags),
         anonId: getOrCreateAnonId(),
       }),
