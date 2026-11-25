@@ -27,6 +27,7 @@ const placeNameEl = document.getElementById('place-name');
 const placeCategoryEl = document.getElementById('place-category');
 const form = document.getElementById('review-form');
 const textInput = document.getElementById('review-text');
+const menuInput = document.getElementById('review-menu');
 const textCountEl = document.getElementById('text-count');
 const draftButton = document.getElementById('draft-button');
 const priceInput = document.getElementById('review-price');
@@ -323,6 +324,8 @@ async function submitReview() {
         place: selectedPlace,
         text: trimmedText,
         price: price,
+        // 먹은 메뉴는 선택 칸이다. 비워 두면 null로 보낸다
+        menu: menuInput.value.trim() || null,
         tags: Array.from(selectedTags),
         anonId: getOrCreateAnonId(),
       }),

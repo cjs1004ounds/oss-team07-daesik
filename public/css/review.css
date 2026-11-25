@@ -19,6 +19,11 @@
   margin-bottom: 18px;
 }
 
+/* 먹은 메뉴 칸은 줄 전체 폭을 쓴다 */
+#review-menu {
+  width: 100%;
+}
+
 .label-row {
   display: flex;
   align-items: baseline;
