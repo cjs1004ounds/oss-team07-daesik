@@ -188,3 +188,21 @@
     border-right: 1px solid #e5e5e5;
   }
 }
+
+/* 위쪽 바의 버튼 두 개 */
+.header-actions {
+  display: flex;
+  flex-shrink: 0;
+  gap: 6px;
+}
+
+/* 흰 바탕 버튼. 기록 남기기보다 덜 눈에 띄게 */
+.site-header .button-light {
+  background: #fff;
+  color: #2a6fdb;
+}
+
+.site-header .button-light:hover {
+  background: #f0f5fd;
+  color: #1f5cbd;
+}
