@@ -132,4 +132,35 @@ verifyButton.addEventListener('click', async () => {
   }
 });
 
+// 내 기록 수와 칭호를 보여 준다 (GET /api/me/:anonId, R18).
+// 교내 인증 상태에서 남긴 기록만 센다. 기록이 없거나 불러오지 못하면 숨긴 채로 둔다
+async function loadMyRecords() {
+  const myRecords = document.getElementById('my-records');
+  const anonId = localStorage.getItem('anonId');
+  if (!anonId) {
+    return;
+  }
+
+  try {
+    const res = await fetch('/api/me/' + encodeURIComponent(anonId));
+    if (!res.ok) {
+      return;
+    }
+    const me = await res.json();
+    if (!me.title) {
+      return;
+    }
+
+    let text = '내 칭호: ' + me.title + ' (기록 ' + me.recordCount + '개, 가게 ' + me.placeCount + '곳)';
+    if (me.nextTitle) {
+      text += '. ' + me.remaining + '개 더 남기면 ' + me.nextTitle;
+    }
+    myRecords.textContent = text;
+    myRecords.hidden = false;
+  } catch (err) {
+    // 못 불러와도 인증과 검색은 그대로 쓸 수 있다
+  }
+}
+
 loadVerifyStatus();
+loadMyRecords();

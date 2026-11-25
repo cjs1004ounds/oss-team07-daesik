@@ -22,6 +22,8 @@
     <!-- 교내 인증. 학교 안에서 한 번 누르면 30일 동안 유지된다 (js/verify.js) -->
     <section id="verify-box" class="verify-box">
       <p id="verify-status" class="verify-status" role="status">교내 인증 상태를 확인하는 중입니다.</p>
+      <!-- 내 기록 수와 칭호 (R18). 기록이 있을 때만 보인다 -->
+      <p id="my-records" class="my-records" hidden></p>
       <button id="verify-button" type="button" hidden>교내 인증하기</button>
       <p class="sub verify-note">학교 와이파이에 연결돼 있으면 바로 되고, 아니면 위치를 한 번 물어봅니다. 위치와 접속 IP는 학교 안인지 판정하는 데만 쓰고 저장하지 않습니다.</p>
     </section>

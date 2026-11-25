@@ -122,6 +122,17 @@
   margin: 8px 0 0;
 }
 
+/* 내 기록 수와 칭호 (R18) */
+.my-records {
+  margin: 6px 0 0;
+  font-size: 13px;
+  color: #555;
+}
+
+.my-records[hidden] {
+  display: none;
+}
+
 /* 인증된 뒤에는 안내 문구를 숨겨서 칸을 작게 한다 */
 .verify-box.is-verified .verify-note {
   display: none;

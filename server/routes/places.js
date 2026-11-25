@@ -14,6 +14,7 @@ const { isKind, hasRecentReport, summarizeLive } = require('../../shared/liveSta
 const { take, cleanUp } = require('../../shared/usageLimit');
 const priceRanges = require('../priceRanges');
 const { findHeldPrices, needsCategoryRange, categoryKey } = require('../../shared/priceCheck');
+const { countRecordsByPerson, titleFor } = require('../../shared/badges');
 const { walkMinutes, isWithinWalk, placeTags, parseFilter, matchesFilter, shortCategory } = require('../../shared/placeFilter');
 const { sortPlaces } = require('../../shared/placeSort');
 
@@ -158,13 +159,16 @@ function toPlaceResponse(place) {
 }
 
 // 화면에 내보낼 한 줄 추천 값. 익명 ID(anonId)는 내보내지 않는다
-// priceHeld는 이상한 가격으로 보류됐는지(R17). 보류된 가격은 보이기는 하고 평균에는 넣지 않는다
-function toReviewResponse(review, held) {
+// priceHeld는 이상한 가격으로 보류됐는지(R17). 보류된 가격은 보이기는 하고 평균에는 넣지 않는다.
+// writerTitle은 쓴 사람의 칭호(R18). 익명 ID는 내보내지 않고 칭호만 내보낸다
+function toReviewResponse(review, held, counts) {
+  const writer = counts ? counts.get(review.anonId) : null;
   return {
     id: review.id,
     text: review.text,
     price: review.price,
     priceHeld: held ? held.has(review.id) : false,
+    writerTitle: writer ? titleFor(writer.recordCount).title : null,
     tags: review.tags,
     createdAt: review.createdAt,
   };
@@ -364,9 +368,10 @@ router.get('/:id', async (req, res) => {
   ]);
 
   const held = heldPricesOf(place, visible);
+  const counts = countRecordsByPerson(store.getReviews(), store.getVisits());
   const reviews = visible
     .sort((a, b) => b.createdAt.localeCompare(a.createdAt))
-    .map((review) => toReviewResponse(review, held));
+    .map((review) => toReviewResponse(review, held, counts));
 
   res.json({
     place: toPlaceResponse(place),
