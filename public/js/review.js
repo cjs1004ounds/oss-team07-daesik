@@ -165,6 +165,24 @@ function getOrCreateAnonId() {
   return anonId;
 }
 
+// 저장 전 검사. 문제 될 내용 목록을 돌려준다. 서버에 닿지 못하면 빈 목록이다
+async function checkReviewText(text) {
+  try {
+    const res = await fetch('/api/reviews/check', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ text: text, placeName: selectedPlace ? selectedPlace.name : '' }),
+    });
+    if (!res.ok) {
+      return [];
+    }
+    const data = await res.json();
+    return Array.isArray(data.issues) ? data.issues : [];
+  } catch (err) {
+    return [];
+  }
+}
+
 // 가격 입력칸 문자열을 검사해 숫자 또는 null(미입력)로 변환한다
 function parsePriceInput(raw) {
   // 화면에는 쉼표가 붙어 있으므로 떼고 본다
@@ -254,6 +272,21 @@ async function submitReview() {
   // 3. 중복 전송을 막기 위해 요청 중에는 저장 버튼을 비활성화한다
   showMessage('');
   submitButton.disabled = true;
+  submitButton.textContent = '검사하는 중...';
+
+  // 저장하기 전에 개인정보, 욕설, 광고 같은 내용이 있는지 검사한다 (POST /api/reviews/check).
+  // 걸린 게 있으면 알려 주고 그래도 저장할지 묻는다. 검사가 실패해도 저장은 그대로 할 수 있다
+  const issues = await checkReviewText(trimmedText);
+  if (issues.length > 0) {
+    const lines = issues.map((issue) => '- ' + issue.message).join('\n');
+    if (!confirm('저장하기 전에 확인해 주세요.\n' + lines + '\n\n남긴 추천은 누구나 볼 수 있습니다. 그래도 저장할까요?')) {
+      showMessage('내용을 고친 뒤 다시 저장해 주세요.');
+      submitButton.disabled = false;
+      submitButton.textContent = '저장하기';
+      textInput.focus();
+      return;
+    }
+  }
   submitButton.textContent = '저장하는 중...';
 
   try {
