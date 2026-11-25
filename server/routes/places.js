@@ -10,6 +10,8 @@ const { shouldExpand, buildExpandPrompt, parseExpansion } = require('../../share
 const { needsSummary, summaryKey, buildSummaryPrompt, parseSummary } = require('../../shared/placeSummary');
 const { COMMON_CATEGORIES, MAX_QUESTION_LENGTH, buildAskPrompt, parseAsk, isEmptyFilter } = require('../../shared/askFilter');
 const { ALLOWED_TAGS } = require('../../shared/reviewValidator');
+const { isKind, hasRecentReport, summarizeLive } = require('../../shared/liveStatus');
+const { take, cleanUp } = require('../../shared/usageLimit');
 const { walkMinutes, isWithinWalk, placeTags, parseFilter, matchesFilter, shortCategory } = require('../../shared/placeFilter');
 
 const router = express.Router();
@@ -212,6 +214,7 @@ function listPlaces(filter) {
         ...placeStats(place.id, now),
         walkMinutes: walkMinutes(place),
         tags: placeTags(reviews),
+        live: summarizeLive(store.getStatusesByPlace(place.id), now),
       };
     })
     .filter((place) => isWithinWalk(place.walkMinutes))
@@ -342,7 +345,54 @@ router.get('/:id', async (req, res) => {
     .map(toReviewResponse);
 
   const summary = await getPlaceSummary(place, visibleReviews(place.id), req.ip);
-  res.json({ place: toPlaceResponse(place), stats: placeStats(place.id, new Date()), summary: summary, reviews });
+  res.json({
+    place: toPlaceResponse(place),
+    stats: placeStats(place.id, new Date()),
+    live: summarizeLive(store.getStatusesByPlace(place.id), new Date()),
+    summary: summary,
+    reviews,
+  });
+});
+
+// 지금 상황 제보를 같은 접속 IP가 1시간에 몇 번까지 할 수 있는지. 새 창으로 여러 번 제보하는 것을 막는다
+const STATUS_PER_IP_LIMIT = 20;
+const HOUR_MS = 60 * 60 * 1000;
+const statusCounters = new Map();
+
+// POST /api/places/:id/status
+// 지금 상황 제보 (R16). "웨이팅 있어요"(waiting) 또는 "자리 있어요"(seats). 30분 동안만 보인다
+router.post('/:id/status', (req, res) => {
+  const place = store.getPlace(req.params.id);
+  if (!place) {
+    res.status(404).json({ error: '없는 가게입니다.' });
+    return;
+  }
+
+  const { kind, anonId } = req.body || {};
+  if (!isKind(kind)) {
+    res.status(400).json({ error: '제보 종류가 올바르지 않습니다.' });
+    return;
+  }
+  if (typeof anonId !== 'string' || anonId.trim() === '' || anonId.trim().length > 100) {
+    res.status(400).json({ error: '익명 ID가 필요합니다.' });
+    return;
+  }
+
+  const now = Date.now();
+  const id = anonId.trim();
+  if (hasRecentReport(store.getStatusesByPlace(place.id), place.id, id, now)) {
+    res.status(409).json({ error: '이 가게는 30분 안에 이미 제보했습니다.' });
+    return;
+  }
+
+  cleanUp(statusCounters, HOUR_MS, now);
+  if (!take(statusCounters, req.ip, STATUS_PER_IP_LIMIT, HOUR_MS, now).ok) {
+    res.status(429).json({ error: '제보가 너무 많습니다. 잠시 뒤에 다시 해 주세요.' });
+    return;
+  }
+
+  store.addStatus({ placeId: place.id, kind: kind, anonId: id });
+  res.status(201).json({ live: summarizeLive(store.getStatusesByPlace(place.id), new Date()) });
 });
 
 module.exports = router;

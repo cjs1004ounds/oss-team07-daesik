@@ -97,6 +97,7 @@ test('GET /api/places의 가게는 정해진 값만 담는다', async () => {
     'id',
     'lastRecordAt',
     'lat',
+    'live',
     'lng',
     'name',
     'responseCount',
