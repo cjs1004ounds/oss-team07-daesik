@@ -189,6 +189,75 @@
   cursor: default;
 }
 
+/* 옆 칸 위의 필터 칸 (가격 상한, 음식 종류, 태그) */
+.filter-form {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px 12px;
+  margin-bottom: 12px;
+  padding-bottom: 12px;
+  border-bottom: 1px solid #eee;
+}
+
+.filter-field {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  flex: 1 1 140px;
+  font-size: 13px;
+  color: #555;
+}
+
+.filter-field input,
+.filter-field select {
+  width: 100%;
+  box-sizing: border-box;
+}
+
+.filter-field select {
+  padding: 9px 10px;
+  border: 1px solid #ccc;
+  border-radius: 4px;
+  background: #fff;
+  color: #333;
+  font-family: inherit;
+  font-size: 15px;
+}
+
+.filter-tags {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+  width: 100%;
+}
+
+/* 태그 버튼. 작성 화면(review.css)과 같은 모양을 조금 작게 쓴다 */
+.filter-tags .tag-button {
+  padding: 4px 10px;
+  border: 1px solid #ccc;
+  border-radius: 999px;
+  background: #fff;
+  color: #333;
+  font-size: 13px;
+  cursor: pointer;
+}
+
+.filter-tags .tag-button:hover {
+  border-color: #2a6fdb;
+  background: #f2f6fd;
+}
+
+.filter-tags .tag-button[aria-pressed="true"] {
+  border-color: #2a6fdb;
+  background: #2a6fdb;
+  color: #fff;
+}
+
+.filter-clear {
+  margin: 0;
+  font-size: 13px;
+}
+
 /* 작은 휴대폰 */
 @media (max-width: 360px) {
   .side-panel {
