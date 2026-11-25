@@ -79,7 +79,38 @@ function validateReviewInput(input) {
   };
 }
 
+// 먹은 메뉴 최대 길이
+const MAX_MENU_LENGTH = 20;
+
+/**
+ * R6: 먹은 메뉴 검사 (선택 칸)
+ * - 비워 두면(null/undefined/'' 또는 공백만) null
+ * - 적었으면 앞뒤 공백을 떼고 20자 이하
+ * validateReviewInput과 따로 둔 이유: 먹은 메뉴는 나중에 더한 칸이라, 앞의 검사가 돌려주는 값의 모양을 바꾸지 않으려는 것이다
+ *
+ * @param {unknown} menu
+ * @returns {{ ok: true, value: string | null } | { ok: false, error: string }}
+ */
+function validateMenu(menu) {
+  if (menu === undefined || menu === null) {
+    return { ok: true, value: null };
+  }
+  if (typeof menu !== 'string') {
+    return { ok: false, error: '먹은 메뉴는 글자로 입력해 주세요.' };
+  }
+  const trimmed = menu.trim().replace(/\s+/g, ' ');
+  if (trimmed === '') {
+    return { ok: true, value: null };
+  }
+  if (trimmed.length > MAX_MENU_LENGTH) {
+    return { ok: false, error: `먹은 메뉴는 ${MAX_MENU_LENGTH}자 이하로 입력해 주세요.` };
+  }
+  return { ok: true, value: trimmed };
+}
+
 module.exports = {
   ALLOWED_TAGS,
-  validateReviewInput
+  MAX_MENU_LENGTH,
+  validateReviewInput,
+  validateMenu
 };

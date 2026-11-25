@@ -127,6 +127,7 @@ function addReview(review) {
     text: review.text,
     price: review.price,
     tags: review.tags,
+    menu: review.menu || null,
     anonId: review.anonId,
     verified: isVerified(review.anonId),
     createdAt: new Date().toISOString(),
