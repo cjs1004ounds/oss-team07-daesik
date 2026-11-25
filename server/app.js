@@ -11,6 +11,7 @@ const reportsRouter = require('./routes/reports');
 const reviewCheckRouter = require('./routes/reviewCheck');
 const reviewsRouter = require('./routes/reviews');
 const roomsRouter = require('./routes/rooms');
+const trendsRouter = require('./routes/trends');
 const verifyRouter = require('./routes/verify');
 const visitsRouter = require('./routes/visits');
 
@@ -43,6 +44,7 @@ app.use('/api/verify', verifyRouter);
 app.use('/api/visits', visitsRouter);
 app.use('/api/rooms', roomsRouter);
 app.use('/api/reports', reportsRouter);
+app.use('/api/trends', trendsRouter);
 
 // 없는 API 경로로 오면 JSON으로 404를 돌려준다
 app.use('/api', (req, res) => {
