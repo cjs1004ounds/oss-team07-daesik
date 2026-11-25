@@ -183,3 +183,101 @@ test('카카오 호출이 실패해도 기록으로 찾은 가게가 있으면 2
   assert.strictEqual(res.status, 200);
   assert.deepStrictEqual(body.places.map((p) => p.id), ['502']);
 });
+
+// LLM으로 검색어 넓히기
+// llm.generateJson과 kakao.searchPlaces를 가짜로 바꾼다. 카카오는 검색어마다 다른 결과를 준다
+
+const llm = require('../server/llm');
+
+function place(id, name) {
+  return { id: id, name: name, lat: 37.62, lng: 127.06, category: '음식점 > 한식', address: '서울 노원구' };
+}
+
+function kakaoByQuery(table) {
+  return test.mock.method(kakao, 'searchPlaces', async (query) => table[query] || []);
+}
+
+test('결과가 적으면 LLM이 넓힌 검색어로 더 찾아 뒤에 붙이고 via를 붙인다', async () => {
+  kakaoByQuery({
+    '넓히기 제육': [place('k1', '본도시락')],
+    '넓히기 제육볶음': [place('k2', '윤스쿡'), place('k1', '본도시락')],
+    '넓히기 제육덮밥': [place('k3', '한솥도시락')],
+  });
+  const fakeLlm = test.mock.method(llm, 'generateJson', async () => '{"keywords":["넓히기 제육볶음","넓히기 제육덮밥"]}');
+
+  const body = await (await search('넓히기 제육')).json();
+
+  assert.deepStrictEqual(body.places.map((p) => [p.name, p.via]), [
+    ['본도시락', undefined],
+    ['윤스쿡', '넓히기 제육볶음'],
+    ['한솥도시락', '넓히기 제육덮밥'],
+  ]);
+  assert.strictEqual(fakeLlm.mock.callCount(), 1);
+});
+
+test('같은 검색어는 LLM을 다시 부르지 않는다', async () => {
+  kakaoByQuery({ '다시 국물': [], '다시 국밥': [place('g1', '국밥집')] });
+  const fakeLlm = test.mock.method(llm, 'generateJson', async () => '{"keywords":["다시 국밥"]}');
+
+  await search('다시 국물');
+  const body = await (await search('  다시   국물 ')).json();
+
+  assert.strictEqual(fakeLlm.mock.callCount(), 1);
+  assert.deepStrictEqual(body.places.map((p) => p.name), ['국밥집']);
+});
+
+test('결과가 10곳 이상이면 LLM을 부르지 않는다', async () => {
+  const ten = Array.from({ length: 10 }, (_, i) => place('t' + i, '가게' + i));
+  kakaoByQuery({ '많은 결과': ten });
+  const fakeLlm = test.mock.method(llm, 'generateJson', async () => '{"keywords":["다른 것"]}');
+
+  const body = await (await search('많은 결과')).json();
+
+  assert.strictEqual(fakeLlm.mock.callCount(), 0);
+  assert.strictEqual(body.places.length, 10);
+});
+
+test('LLM이 실패하거나 이상한 답을 주면 원래 결과만 돌려준다', async () => {
+  kakaoByQuery({ '실패 검색': [place('f1', '한식당')], '이상 검색': [place('f2', '분식집')] });
+
+  test.mock.method(llm, 'generateJson', async () => {
+    throw new Error('GEMINI_API_KEY가 없습니다.');
+  });
+  const failed = await (await search('실패 검색')).json();
+
+  test.mock.restoreAll();
+  kakaoByQuery({ '이상 검색': [place('f2', '분식집')] });
+  test.mock.method(llm, 'generateJson', async () => '검색어는 떡볶이입니다');
+  const odd = await (await search('이상 검색')).json();
+
+  assert.deepStrictEqual(failed.places.map((p) => p.name), ['한식당']);
+  assert.deepStrictEqual(odd.places.map((p) => p.name), ['분식집']);
+});
+
+test('넓힌 검색어 하나로 카카오가 실패해도 나머지 결과는 쓴다', async () => {
+  test.mock.method(kakao, 'searchPlaces', async (query) => {
+    if (query === '부분 실패2') {
+      throw new Error('카카오 API 응답이 500입니다.');
+    }
+    return query === '부분 실패1' ? [place('p1', '찾은가게')] : [];
+  });
+  test.mock.method(llm, 'generateJson', async () => '{"keywords":["부분 실패1","부분 실패2"]}');
+
+  const res = await search('부분 실패');
+  const body = await res.json();
+
+  assert.strictEqual(res.status, 200);
+  assert.deepStrictEqual(body.places.map((p) => [p.name, p.via]), [['찾은가게', '부분 실패1']]);
+});
+
+test('원래 검색어로 카카오가 실패하면 넓히지 않고 502다', async () => {
+  test.mock.method(kakao, 'searchPlaces', async () => {
+    throw new Error('카카오 API 응답이 500입니다.');
+  });
+  const fakeLlm = test.mock.method(llm, 'generateJson', async () => '{"keywords":["무엇"]}');
+
+  const res = await search('카카오 실패 넓히기');
+
+  assert.strictEqual(res.status, 502);
+  assert.strictEqual(fakeLlm.mock.callCount(), 0);
+});

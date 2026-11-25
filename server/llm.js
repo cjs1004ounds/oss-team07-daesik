@@ -7,12 +7,12 @@ const GEMINI_BASE_URL = 'https://generativelanguage.googleapis.com/v1beta/models
 // 정식(stable) 모델 중 빠르고 싼 쪽. 바꾸려면 .env의 GEMINI_MODEL에 적는다
 const DEFAULT_MODEL = 'gemini-3.5-flash-lite';
 
-// 이보다 오래 걸리면 기다리지 않고 실패로 본다
+// 이보다 오래 걸리면 기다리지 않고 실패로 본다. 부르는 쪽에서 options.timeoutMs로 줄일 수 있다
 const TIMEOUT_MS = 8000;
 
 // 문장을 보내고 모델이 돌려준 글자를 그대로 돌려준다. JSON으로 답하게 요청한다.
 // 돌려받은 글자가 맞는 모양인지는 부르는 쪽에서 검사한다 (예: shared/moderation.js)
-async function generateJson(prompt) {
+async function generateJson(prompt, options = {}) {
   const key = process.env.GEMINI_API_KEY;
   if (!key) {
     throw new Error('GEMINI_API_KEY가 없습니다.');
@@ -34,7 +34,7 @@ async function generateJson(prompt) {
         temperature: 0,
       },
     }),
-    signal: AbortSignal.timeout(TIMEOUT_MS),
+    signal: AbortSignal.timeout(options.timeoutMs || TIMEOUT_MS),
   });
 
   if (!res.ok) {
