@@ -28,6 +28,7 @@ const placeCategoryEl = document.getElementById('place-category');
 const form = document.getElementById('review-form');
 const textInput = document.getElementById('review-text');
 const textCountEl = document.getElementById('text-count');
+const draftButton = document.getElementById('draft-button');
 const priceInput = document.getElementById('review-price');
 const priceDownButton = document.getElementById('price-down');
 const priceUpButton = document.getElementById('price-up');
@@ -52,6 +53,11 @@ if (selectedPlace) {
 textInput.addEventListener('input', () => {
   const length = textInput.value.trim().length;
   textCountEl.textContent = `${length} / 100자`;
+});
+
+// AI로 가격·태그 채우기 버튼을 누르면 문장을 분석해 칸을 채운다
+draftButton.addEventListener('click', async () => {
+  await fillDraftFromText();
 });
 
 // 가격을 입력할 때마다 숫자만 남기고 천 단위 쉼표를 다시 붙인다 (7000 -> 7,000)
@@ -339,5 +345,69 @@ async function submitReview() {
     // 오류가 나서 현재 화면에 머무를 경우 다시 시도할 수 있도록 버튼을 복구한다
     submitButton.disabled = false;
     submitButton.textContent = '저장하기';
+  }
+}
+
+// 한 줄 추천 문장을 서버(POST /api/reviews/draft)에 보내 가격과 태그 칸을 채운다
+async function fillDraftFromText() {
+  const trimmedText = textInput.value.trim();
+  if (trimmedText === '') {
+    showMessage('먼저 한 줄 추천을 입력해 주세요.');
+    textInput.focus();
+    return;
+  }
+
+  showMessage('');
+  draftButton.disabled = true;
+  draftButton.textContent = '분석하는 중...';
+
+  try {
+    const place = selectedPlace || {};
+    const res = await fetch('/api/reviews/draft', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({
+        text: trimmedText,
+        placeName: place.name || '',
+        category: place.category || '',
+      }),
+    });
+
+    const data = await res.json();
+    if (!res.ok) {
+      showMessage(data.error || '초안을 불러오지 못했습니다.');
+      return;
+    }
+
+    if (data.source === 'empty') {
+      showMessage(data.message || 'AI 초안을 불러오지 못했습니다. 직접 입력해 주세요.');
+      return;
+    }
+
+    const draft = data.draft || { price: null, tags: [] };
+
+    // 가격이 있으면 쉼표를 붙여 채우고, 없으면 비워 둔다
+    priceInput.value = draft.price !== null ? formatPrice(String(draft.price)) : '';
+
+    // 태그 버튼 선택 상태를 서버가 뽑아 준 목록으로 맞춘다
+    selectedTags.clear();
+    for (const tag of draft.tags) {
+      selectedTags.add(tag);
+    }
+    for (const button of tagListEl.querySelectorAll('.tag-button')) {
+      const pressed = selectedTags.has(button.textContent);
+      button.setAttribute('aria-pressed', pressed ? 'true' : 'false');
+    }
+
+    if (draft.price === null && draft.tags.length === 0) {
+      showMessage('문장에서 가격이나 태그를 찾지 못했습니다. 필요하면 직접 골라 주세요.');
+    } else {
+      showMessage('가격과 태그를 채웠습니다. 맞는지 확인한 뒤 저장해 주세요.');
+    }
+  } catch (err) {
+    showMessage('서버에 연결하지 못했습니다. 가격과 태그를 직접 입력해 주세요.');
+  } finally {
+    draftButton.disabled = false;
+    draftButton.textContent = 'AI로 가격·태그 채우기';
   }
 }
