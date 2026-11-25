@@ -9,6 +9,8 @@ const input = document.getElementById('search-input');
 const button = document.getElementById('search-button');
 const message = document.getElementById('search-message');
 const results = document.getElementById('search-results');
+const trendsBox = document.getElementById('trends');
+const trendList = document.getElementById('trend-list');
 
 form.addEventListener('submit', (event) => {
   // 폼을 제출하면 화면이 새로 고쳐지는 기본 동작을 막는다
@@ -134,3 +136,36 @@ function selectPlace(place) {
   sessionStorage.setItem('selectedPlace', JSON.stringify(selected));
   location.href = REVIEW_PAGE;
 }
+
+// 요즘 많이 먹는 메뉴를 버튼으로 보여 준다. 누르면 그 메뉴로 검색한다.
+// 불러오지 못하거나 기록이 없으면 칸을 숨긴 채로 둔다
+async function loadTrends() {
+  try {
+    const res = await fetch('/api/trends');
+    if (!res.ok) {
+      return;
+    }
+    const data = await res.json();
+    if (!Array.isArray(data.menus) || data.menus.length === 0) {
+      return;
+    }
+
+    for (const menu of data.menus) {
+      const chip = document.createElement('button');
+      chip.type = 'button';
+      chip.className = 'trend-chip';
+      chip.textContent = menu.name + ' ' + menu.count;
+      chip.title = '최근 ' + data.days + '일 동안 ' + menu.count + '개의 한 줄 추천에 나온 메뉴';
+      chip.addEventListener('click', () => {
+        input.value = menu.name;
+        searchPlaces(menu.name);
+      });
+      trendList.append(chip);
+    }
+    trendsBox.hidden = false;
+  } catch (err) {
+    // 못 불러와도 검색은 그대로 쓸 수 있다
+  }
+}
+
+loadTrends();

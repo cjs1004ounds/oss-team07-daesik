@@ -143,3 +143,37 @@
   font-size: 13px;
   color: #888;
 }
+
+/* 요즘 많이 먹는 메뉴 */
+.trends {
+  margin: 16px 0 4px;
+}
+
+.trends[hidden] {
+  display: none;
+}
+
+.trends h2 {
+  margin-bottom: 6px;
+  font-size: 14px;
+}
+
+.trend-list {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+}
+
+.trend-chip {
+  padding: 4px 10px;
+  border: 1px solid #c9d8f3;
+  border-radius: 14px;
+  background: #f0f5fd;
+  color: #1f5cbd;
+  font-size: 13px;
+}
+
+.trend-chip:hover {
+  background: #e1ebfb;
+  color: #1f5cbd;
+}
