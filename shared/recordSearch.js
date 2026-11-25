@@ -13,14 +13,18 @@ function compact(text) {
   return text.replace(/\s+/g, '').toLowerCase();
 }
 
-// 한 줄 추천 하나에 검색어가 들어 있는지. 문장과 먹은 메뉴(menu, 있을 때만)를 본다.
+// 한 줄 추천 하나에 검색어가 들어 있는지. 문장, 먹은 메뉴(menu), LLM이 글에서 뽑은 메뉴(menus)를 본다.
+// 글에는 "제육"이라고만 썼어도 LLM이 "제육볶음"으로 뽑아 뒀으면 "제육볶음"으로도 찾힌다.
 // 신고로 숨긴 글(R15)은 찾지 않는다
 function reviewMatches(review, query) {
   const target = compact(query);
   if (target === '' || !review || review.hidden) {
     return false;
   }
-  return compact(review.text).includes(target) || compact(review.menu).includes(target);
+  if (compact(review.text).includes(target) || compact(review.menu).includes(target)) {
+    return true;
+  }
+  return Array.isArray(review.menus) && review.menus.some((menu) => compact(menu).includes(target));
 }
 
 // 검색어가 들어 있는 기록이 있는 가게를 찾는다.

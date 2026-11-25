@@ -168,6 +168,9 @@ function toReviewResponse(review, held, counts) {
     text: review.text,
     price: review.price,
     priceHeld: held ? held.has(review.id) : false,
+    // menu는 쓴 사람이 적은 먹은 메뉴, menus는 LLM이 글에서 뽑은 메뉴(요즘 많이 먹는 메뉴에 쓰는 값)
+    menu: review.menu || null,
+    menus: Array.isArray(review.menus) ? review.menus : [],
     writerTitle: writer ? titleFor(writer.recordCount).title : null,
     tags: review.tags,
     createdAt: review.createdAt,
