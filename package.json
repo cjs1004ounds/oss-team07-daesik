@@ -2,6 +2,7 @@
   "name": "oss-teamproject",
   "version": "0.1.0",
   "private": true,
+  "license": "MIT",
   "description": "대식이: 광운대 주변 음식점 추천 지도 (오픈소스소프트웨어및실습 7조)",
   "main": "server/index.js",
   "scripts": {
