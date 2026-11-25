@@ -1,4 +1,4 @@
-// 저장 모듈. 가게, 한 줄 추천, 교내 인증, 다녀왔어요 응답, 같이 정하기 방, 신고를 JSON 파일에 읽고 쓴다.
+// 저장 모듈. 가게, 한 줄 추천, 교내 인증, 다녀왔어요 응답, 같이 정하기 방, 신고, 지금 상황 제보를 JSON 파일에 읽고 쓴다.
 // 파일을 직접 여는 코드는 이 파일에만 둔다.
 // 나중에 저장 방식을 바꾸게 되면(예: 호스팅이 파일을 지우는 경우) 이 파일만 고치면 된다.
 
@@ -7,6 +7,7 @@ const path = require('path');
 const crypto = require('crypto');
 
 const { isVerificationActive } = require('../shared/campusVerify');
+const { pruneOld } = require('../shared/liveStatus');
 
 // 켤 때 파일에서 읽어 와 여기에 들고 있다가, 추가할 때마다 파일에 다시 쓴다
 let places = null;
@@ -15,6 +16,7 @@ let verifications = null;
 let visits = null;
 let rooms = null;
 let reports = null;
+let statuses = null;
 
 // 실행 중에 쓰는 파일이 있는 폴더. 테스트에서는 DATA_DIR로 임시 폴더를 가리킨다
 function getDataDir() {
@@ -56,11 +58,12 @@ function load() {
   visits = readList('visits.json');
   rooms = readList('rooms.json');
   reports = readList('reports.json');
+  statuses = readList('statuses.json');
 }
 
 // load()를 안 부르고 쓰더라도 동작하게 한다
 function ensureLoaded() {
-  if (places === null || reviews === null || verifications === null || visits === null || rooms === null || reports === null) {
+  if (places === null || reviews === null || verifications === null || visits === null || rooms === null || reports === null || statuses === null) {
     load();
   }
 }
@@ -323,6 +326,29 @@ function addReport(report) {
   return newReport;
 }
 
+// 가게 하나의 지금 상황 제보 전부 (R16)
+function getStatusesByPlace(placeId) {
+  ensureLoaded();
+  return statuses.filter((status) => status.placeId === placeId);
+}
+
+// 지금 상황 제보를 추가한다. 하루가 지난 제보는 이때 지운다
+function addStatus(status) {
+  ensureLoaded();
+
+  const newStatus = {
+    id: crypto.randomUUID(),
+    placeId: status.placeId,
+    kind: status.kind,
+    anonId: status.anonId,
+    createdAt: new Date().toISOString(),
+  };
+  statuses = pruneOld(statuses, Date.now());
+  statuses.push(newStatus);
+  writeList('statuses.json', statuses);
+  return newStatus;
+}
+
 module.exports = {
   load,
   getPlaces,
@@ -346,4 +372,6 @@ module.exports = {
   hideReview,
   getReportsByReview,
   addReport,
+  getStatusesByPlace,
+  addStatus,
 };
