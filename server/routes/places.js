@@ -13,6 +13,7 @@ const { ALLOWED_TAGS } = require('../../shared/reviewValidator');
 const { isKind, hasRecentReport, summarizeLive } = require('../../shared/liveStatus');
 const { take, cleanUp } = require('../../shared/usageLimit');
 const { walkMinutes, isWithinWalk, placeTags, parseFilter, matchesFilter, shortCategory } = require('../../shared/placeFilter');
+const { sortPlaces } = require('../../shared/placeSort');
 
 const router = express.Router();
 
@@ -187,7 +188,7 @@ function placeStats(placeId, now) {
 // 기록이 있는 가게 목록. 가게마다 한 줄 추천 수(reviewCount)를 붙인다. 숨긴 글은 세지 않는다.
 // 또 갈래요 비율, 1인 가격 평균, 마지막 기록 날짜(R14)와 도보 시간(R1), 가게 태그(R3)도 붙인다.
 // 학교에서 걸어서 15분이 넘는 가게는 뺀다(R2). 쿼리를 보내면 가격 상한, 음식 종류, 태그로 거른다(R3).
-// 정렬(R5)은 아직 없다
+// 남은 가게는 또 갈래요 비율이 높은 순, 같으면 가까운 순으로 정렬하고 "기록 부족"은 맨 뒤에 둔다(R5)
 router.get('/', (req, res) => {
   const filter = parseFilter(req.query);
   if (!filter.ok) {
@@ -198,13 +199,13 @@ router.get('/', (req, res) => {
   res.json({ places: listPlaces(filter.value) });
 });
 
-// 기록이 있는 가게 목록을 만들어 거른다. GET /api/places와 말로 찾기가 같이 쓴다.
+// 기록이 있는 가게 목록을 만들어 거르고 R5 순서로 정렬한다. GET /api/places와 말로 찾기가 같이 쓴다.
 // maxWalk(걸어서 몇 분 안)는 말로 찾기에서만 온다. 없으면 R2의 15분만 본다
 function listPlaces(filter) {
   const now = new Date();
   // R3 필터(matchesFilter)는 음식 종류가 없으면 빈 문자열을 받는다. 말로 찾기는 null을 줘서 맞춘다
   const r3Filter = { maxPrice: filter.maxPrice, category: filter.category || '', tags: filter.tags };
-  return store
+  const places = store
     .getPlaces()
     .map((place) => {
       const reviews = visibleReviews(place.id);
@@ -220,6 +221,7 @@ function listPlaces(filter) {
     .filter((place) => isWithinWalk(place.walkMinutes))
     .filter((place) => !filter.maxWalk || place.walkMinutes <= filter.maxWalk)
     .filter((place) => matchesFilter(place, r3Filter));
+  return sortPlaces(places);
 }
 
 // 말로 찾기에서 고를 수 있는 음식 종류. 자주 나오는 것에 지금 기록된 가게의 종류를 더한다
