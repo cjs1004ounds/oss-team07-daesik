@@ -281,3 +281,36 @@ test('원래 검색어로 카카오가 실패하면 넓히지 않고 502다', as
   assert.strictEqual(res.status, 502);
   assert.strictEqual(fakeLlm.mock.callCount(), 0);
 });
+
+test('검색어가 50자를 넘으면 400이고 카카오와 LLM을 부르지 않는다', async () => {
+  const fakeKakao = test.mock.method(kakao, 'searchPlaces', async () => []);
+  const fakeLlm = test.mock.method(llm, 'generateJson', async () => '{"keywords":[]}');
+
+  const res = await search('가'.repeat(51));
+  const ok = await search('나'.repeat(50));
+
+  assert.strictEqual(res.status, 400);
+  assert.strictEqual(ok.status, 200);
+  assert.strictEqual(fakeKakao.mock.callCount(), 1);
+  assert.strictEqual(fakeLlm.mock.callCount(), 1);
+});
+
+test('사람별 LLM 한도에 걸린 검색어는 저장하지 않아서 다음에 다시 넓힐 수 있다', async () => {
+  kakaoByQuery({ '한도 국물': [], '한도 국밥': [place('l1', '국밥집')] });
+  let calls = 0;
+  test.mock.method(llm, 'generateJson', async () => {
+    calls += 1;
+    if (calls === 1) {
+      const err = new Error('LLM 사람별 한도를 넘었습니다.');
+      err.code = 'LLM_LIMIT';
+      throw err;
+    }
+    return '{"keywords":["한도 국밥"]}';
+  });
+
+  const first = await (await search('한도 국물')).json();
+  const second = await (await search('한도 국물')).json();
+
+  assert.deepStrictEqual(first.places, []);
+  assert.deepStrictEqual(second.places.map((p) => p.name), ['국밥집']);
+});
