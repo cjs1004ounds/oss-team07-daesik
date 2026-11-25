@@ -135,3 +135,11 @@
   font-weight: 700;
   color: #2a6fdb;
 }
+
+/* 연관 검색어로 찾은 가게 표시 */
+.place-via {
+  display: block;
+  margin-top: 2px;
+  font-size: 13px;
+  color: #888;
+}
