@@ -69,3 +69,81 @@ test('카카오가 오류 상태로 응답하면 오류를 던진다', async () 
 
   await assert.rejects(() => kakao.searchPlaces('제육'));
 });
+
+// 음식점(FD6)과 카페(CE7)를 같이 찾는다
+
+function kakaoDocument(id, name, distance, code) {
+  return {
+    id: id,
+    place_name: name,
+    x: '127.06',
+    y: '37.62',
+    category_name: code === 'CE7' ? '음식점 > 카페' : '음식점 > 한식',
+    road_address_name: '서울 노원구',
+    address_name: '',
+    distance: distance,
+  };
+}
+
+// 분류마다 다른 결과를 주는 가짜 카카오
+function mockFetchByCategory(byCategory) {
+  return test.mock.method(global, 'fetch', async (url) => {
+    const code = new URL(url).searchParams.get('category_group_code');
+    return { ok: true, json: async () => ({ documents: byCategory[code] || [] }) };
+  });
+}
+
+test('음식점과 카페 분류로 한 번씩 찾는다', async () => {
+  process.env.KAKAO_REST_API_KEY = 'test-rest-key';
+  const fake = mockFetch();
+
+  await kakao.searchPlaces('카페');
+
+  const codes = fake.mock.calls.map((call) => new URL(call.arguments[0]).searchParams.get('category_group_code'));
+  assert.deepStrictEqual(codes.sort(), ['CE7', 'FD6']);
+});
+
+test('두 분류의 결과를 학교에서 가까운 순으로 합친다', async () => {
+  process.env.KAKAO_REST_API_KEY = 'test-rest-key';
+  mockFetchByCategory({
+    FD6: [kakaoDocument('1', '먼식당', '500', 'FD6'), kakaoDocument('2', '가까운식당', '100', 'FD6')],
+    CE7: [kakaoDocument('3', '중간카페', '300', 'CE7'), kakaoDocument('4', '거리모름카페', '', 'CE7')],
+  });
+
+  const places = await kakao.searchPlaces('카페');
+
+  assert.deepStrictEqual(places.map((p) => p.name), ['가까운식당', '중간카페', '먼식당', '거리모름카페']);
+  assert.strictEqual(places[0].distance, undefined);
+});
+
+test('두 분류에 같은 가게가 있으면 한 번만 넣는다', async () => {
+  process.env.KAKAO_REST_API_KEY = 'test-rest-key';
+  mockFetchByCategory({
+    FD6: [kakaoDocument('1', '디저트식당', '100', 'FD6')],
+    CE7: [kakaoDocument('1', '디저트식당', '100', 'CE7')],
+  });
+
+  const places = await kakao.searchPlaces('디저트');
+  assert.strictEqual(places.length, 1);
+});
+
+test(`합친 결과는 ${kakao.MAX_RESULTS}곳까지만 돌려준다`, async () => {
+  process.env.KAKAO_REST_API_KEY = 'test-rest-key';
+  const many = (code, start) => Array.from({ length: 15 }, (_, i) => kakaoDocument(String(start + i), '가게' + (start + i), String(i * 10), code));
+  mockFetchByCategory({ FD6: many('FD6', 0), CE7: many('CE7', 100) });
+
+  const places = await kakao.searchPlaces('밥');
+  assert.strictEqual(places.length, kakao.MAX_RESULTS);
+});
+
+test('두 분류 중 하나라도 실패하면 오류를 던진다', async () => {
+  process.env.KAKAO_REST_API_KEY = 'test-rest-key';
+  test.mock.method(global, 'fetch', async (url) => {
+    const code = new URL(url).searchParams.get('category_group_code');
+    return code === 'CE7'
+      ? { ok: false, status: 500, json: async () => ({}) }
+      : { ok: true, json: async () => ({ documents: [] }) };
+  });
+
+  await assert.rejects(() => kakao.searchPlaces('카페'), /500/);
+});
