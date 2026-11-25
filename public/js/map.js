@@ -445,6 +445,11 @@ async function showPlaceDetail(placeId) {
       const held = review.priceHeld ? ' (가격 확인 중, 평균에서 뺌)' : '';
       extras.push(`1인 ${review.price.toLocaleString('ko-KR')}원${held}`);
     }
+    // 먹은 메뉴. 쓴 사람이 적은 것이 있으면 그것을, 없으면 LLM이 글에서 뽑은 것을 보여 준다
+    const menuText = review.menu || (Array.isArray(review.menus) ? review.menus.join(', ') : '');
+    if (menuText) {
+      extras.push('메뉴 ' + menuText);
+    }
     if (Array.isArray(review.tags)) {
       extras.push(...review.tags);
     }

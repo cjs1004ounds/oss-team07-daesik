@@ -1,7 +1,7 @@
 const express = require('express');
 
 const store = require('../store');
-const { validateReviewInput } = require('../../shared/reviewValidator');
+const { validateReviewInput, validateMenu } = require('../../shared/reviewValidator');
 const { isDuplicateToday } = require('../../shared/duplicateLimit');
 
 const router = express.Router();
@@ -50,6 +50,13 @@ router.post('/', (req, res) => {
     return;
   }
 
+  // 먹은 메뉴는 선택 칸이다 (R6)
+  const menuResult = validateMenu((req.body || {}).menu);
+  if (!menuResult.ok) {
+    res.status(400).json({ error: menuResult.error });
+    return;
+  }
+
   const placeId = place.id.trim();
   const trimmedAnonId = anonId.trim();
 
@@ -71,6 +78,7 @@ router.post('/', (req, res) => {
     text: result.value.text,
     price: result.value.price,
     tags: result.value.tags,
+    menu: menuResult.value,
     anonId: trimmedAnonId,
   });
 
