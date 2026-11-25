@@ -136,6 +136,35 @@
   color: #2a6fdb;
 }
 
+/* 지금 상황 (R16) */
+.live-box {
+  margin: 0 0 10px;
+  padding: 8px 10px;
+  border: 1px solid #eee;
+  border-radius: 6px;
+}
+
+.live-status {
+  display: block;
+  margin: 0 0 6px;
+  font-size: 13px;
+  color: #c0392b;
+}
+
+.place-list-item .live-status {
+  margin: 2px 0 0;
+}
+
+.live-buttons {
+  display: flex;
+  gap: 6px;
+}
+
+.live-buttons button {
+  padding: 5px 10px;
+  font-size: 13px;
+}
+
 /* 한 줄 추천 아래의 작은 신고 버튼 */
 .report-button {
   margin-top: 4px;
