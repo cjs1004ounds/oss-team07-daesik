@@ -91,11 +91,15 @@ test('GET /api/places의 가게는 정해진 값만 담는다', async () => {
   const body = await res.json();
 
   assert.deepStrictEqual(Object.keys(body.places[0]).sort(), [
+    'againRatio',
+    'averagePrice',
     'category',
     'id',
+    'lastRecordAt',
     'lat',
     'lng',
     'name',
+    'responseCount',
     'reviewCount',
   ]);
 });
