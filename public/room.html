@@ -1,0 +1,77 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>같이 정하기 | 대식이</title>
+  <link rel="icon" href="/favicon.svg" type="image/svg+xml">
+  <link rel="stylesheet" href="/css/style.css">
+  <link rel="stylesheet" href="/css/room.css">
+</head>
+<body>
+  <header class="site-header">
+    <a class="site-title" href="/">대식이</a>
+  </header>
+
+  <main class="page">
+    <p class="sub"><a href="/">지도로 돌아가기</a></p>
+
+    <!-- 방 만들기. 주소에 code가 없을 때 보인다 (js/room.js) -->
+    <section id="create-view" hidden>
+      <h1>같이 정하기</h1>
+      <p>오늘 갈 후보 가게를 2~6곳 골라 방을 만들고, 링크를 단톡방에 올려 주세요. 각자 투표하고 방을 만든 사람이 마감하면 가게가 정해집니다.</p>
+
+      <h2>고른 후보 <span id="candidate-count" class="sub">0 / 6</span></h2>
+      <ul id="candidate-list" class="room-list"></ul>
+      <p id="candidate-empty" class="sub">아직 고른 가게가 없습니다. 아래에서 검색해서 넣어 주세요.</p>
+
+      <button id="create-button" type="button" disabled>방 만들기</button>
+      <p id="create-message" class="sub" role="status"></p>
+
+      <form id="candidate-search-form">
+        <label for="candidate-search-input">후보 가게 찾기</label>
+        <div class="search-row">
+          <input id="candidate-search-input" type="search" placeholder="예: 제육, 돈까스" autocomplete="off" required>
+          <button id="candidate-search-button" type="submit">검색</button>
+        </div>
+      </form>
+      <p id="candidate-search-message" class="sub" role="status"></p>
+      <ul id="candidate-search-results" class="room-list"></ul>
+    </section>
+
+    <!-- 방. 주소가 /room.html?code=방코드 일 때 보인다 -->
+    <section id="room-view" hidden>
+      <h1>같이 정하기 <span id="room-code" class="room-code"></span></h1>
+
+      <!-- 링크 나누기. 방을 만든 사람에게만 보인다 -->
+      <div id="share-box" class="share-box" hidden>
+        <p>이 링크를 단톡방에 올려 주세요.</p>
+        <div class="search-row">
+          <input id="share-link" type="text" readonly>
+          <button id="copy-button" type="button">복사</button>
+        </div>
+      </div>
+
+      <p id="room-status" class="room-status" role="status">불러오는 중입니다.</p>
+      <ul id="vote-list" class="room-list"></ul>
+
+      <!-- 마감. 방을 만든 사람에게만 보인다 -->
+      <button id="close-button" type="button" hidden>투표 마감하고 가게 정하기</button>
+
+      <!-- 마감 뒤 다녀왔어요 -->
+      <div id="visit-box" class="visit-box" hidden>
+        <p>다녀오셨으면 어땠는지 남겨 주세요. 지도에 기록으로 남습니다.</p>
+        <div class="visit-buttons">
+          <button id="again-button" type="button">또 갈래요</button>
+          <button id="meh-button" type="button" class="secondary">글쎄요</button>
+        </div>
+        <p id="visit-message" class="sub" role="status"></p>
+      </div>
+
+      <p id="room-message" class="sub" role="status"></p>
+    </section>
+  </main>
+
+  <script src="/js/room.js"></script>
+</body>
+</html>

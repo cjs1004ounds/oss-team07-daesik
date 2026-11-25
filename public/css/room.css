@@ -1,0 +1,168 @@
+/* 같이 정하기 화면에서만 쓰는 스타일 */
+
+#create-view label {
+  display: block;
+  margin-bottom: 6px;
+  font-size: 13px;
+  color: #888;
+}
+
+/* 입력 칸이 남는 폭을 다 쓰고 버튼은 글자 크기만큼만 차지한다 */
+.search-row {
+  display: flex;
+  gap: 6px;
+}
+
+.search-row input {
+  flex: 1;
+  min-width: 0;
+}
+
+.search-row button {
+  flex-shrink: 0;
+}
+
+#candidate-search-message {
+  min-height: 21px;
+  margin: 10px 0 4px;
+}
+
+#create-view h2 {
+  margin-top: 16px;
+}
+
+/* 고른 후보와 방 만들기 버튼 아래, 검색 칸 위에 간격을 둔다 */
+#candidate-search-form {
+  margin-top: 24px;
+}
+
+/* 가게 한 줄. 왼쪽에 이름과 분류, 오른쪽에 버튼 */
+.room-list {
+  margin: 0 0 12px;
+  padding: 0;
+  list-style: none;
+  border-top: 1px solid #e5e5e5;
+}
+
+.room-list:empty {
+  border-top: none;
+}
+
+.room-list li {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 10px;
+  padding: 10px 4px;
+  border-bottom: 1px solid #e5e5e5;
+}
+
+/* 남는 폭을 다 써서 투표 막대가 길게 보이게 한다 */
+.room-place {
+  flex: 1;
+  min-width: 0;
+}
+
+/* 이름, 분류, 표 수를 한 줄씩 */
+.room-place strong,
+.room-place .sub {
+  display: block;
+}
+
+.room-list li button {
+  flex-shrink: 0;
+  padding: 6px 12px;
+  font-size: 14px;
+}
+
+/* 흰 바탕 버튼. 빼기, 글쎄요처럼 덜 중요한 쪽 */
+button.secondary {
+  background: #fff;
+  color: #2a6fdb;
+}
+
+button.secondary:hover {
+  background: #f0f5fd;
+  color: #1f5cbd;
+}
+
+/* 공통 스타일의 button { display: inline-block } 이 hidden을 덮어쓰지 않게 한다 */
+#room-view button[hidden],
+#create-view button[hidden] {
+  display: none;
+}
+
+.room-code {
+  margin-left: 6px;
+  font-size: 15px;
+  font-weight: 400;
+  color: #888;
+  letter-spacing: 1px;
+}
+
+.share-box,
+.visit-box {
+  margin: 4px 0 16px;
+  padding: 12px 14px;
+  border: 1px solid #e5e5e5;
+  border-radius: 6px;
+  background: #f7f7f7;
+}
+
+.share-box p,
+.visit-box p {
+  margin: 0 0 8px;
+  font-size: 14px;
+}
+
+#share-link {
+  font-size: 13px;
+}
+
+.room-status {
+  font-size: 14px;
+  color: #555;
+}
+
+/* 투표 막대. 표 수만큼 강조색으로 채운다 */
+.vote-bar {
+  display: block;
+  height: 6px;
+  margin-top: 6px;
+  border-radius: 3px;
+  background: #eee;
+  overflow: hidden;
+}
+
+.vote-bar span {
+  display: block;
+  height: 100%;
+  background: #a9c1ea;
+}
+
+/* 내가 투표한 가게, 정해진 가게 */
+.room-list li.is-mine .vote-bar span {
+  background: #2a6fdb;
+}
+
+.room-list li.is-winner {
+  background: #f0f5fd;
+}
+
+.room-list li.is-winner strong::after {
+  content: " 정해짐";
+  margin-left: 4px;
+  font-size: 13px;
+  color: #2a6fdb;
+}
+
+.visit-buttons {
+  display: flex;
+  gap: 8px;
+}
+
+#visit-message,
+#room-message,
+#create-message {
+  margin-top: 8px;
+}
