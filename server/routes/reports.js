@@ -15,7 +15,7 @@ function isValidId(value) {
 
 // 신고된 글을 LLM에게 한 번 물어본다. 이미 물어본 글이면 저장해 둔 판단을 쓴다.
 // 키가 없거나 호출이 실패하면 null을 돌려주고, 숨길지는 신고 수로만 정해진다
-async function getModeration(review) {
+async function getModeration(review, clientKey) {
   if (review.moderation) {
     return review.moderation;
   }
@@ -23,7 +23,7 @@ async function getModeration(review) {
   try {
     const place = store.getPlace(review.placeId);
     const prompt = buildModerationPrompt(place ? place.name : '', review.text);
-    const result = parseModeration(await llm.generateJson(prompt));
+    const result = parseModeration(await llm.generateJson(prompt, { clientKey: clientKey }));
     if (!result.ok) {
       console.error('LLM 판단을 쓸 수 없습니다: ' + result.error);
       return null;
@@ -69,7 +69,7 @@ router.post('/', async (req, res) => {
   }
 
   const report = store.addReport({ reviewId: id, anonId: reporter });
-  const moderation = await getModeration(review);
+  const moderation = await getModeration(review, req.ip);
   const decision = decideHide(store.getReportsByReview(id), moderation);
   if (decision.hide) {
     store.hideReview(id, decision.reason);
