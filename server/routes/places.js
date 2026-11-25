@@ -4,6 +4,7 @@ const kakao = require('../kakao');
 const store = require('../store');
 const searchCache = require('../../shared/searchCache');
 const { findPlacesByRecords, mergeResults } = require('../../shared/recordSearch');
+const { againStats, averagePrice, lastRecordAt } = require('../../shared/recordWeight');
 
 const router = express.Router();
 
@@ -71,13 +72,29 @@ function visibleReviews(placeId) {
   return store.getReviewsByPlace(placeId).filter((review) => !review.hidden);
 }
 
+// 가게 하나의 비율, 가격, 마지막 기록 (R14). 최근 기록일수록 크게 반영한다
+function placeStats(placeId, now) {
+  const reviews = visibleReviews(placeId);
+  const visits = store.getVisitsByPlace(placeId);
+  const again = againStats(visits, now);
+  return {
+    responseCount: again.responseCount,
+    againRatio: again.againRatio,
+    averagePrice: averagePrice(reviews, now),
+    lastRecordAt: lastRecordAt([...reviews, ...visits]),
+  };
+}
+
 // GET /api/places
 // 기록이 있는 가게 목록. 가게마다 한 줄 추천 수(reviewCount)를 붙인다. 숨긴 글은 세지 않는다.
+// 또 갈래요 비율, 1인 가격 평균, 마지막 기록 날짜(R14)도 붙인다.
 // 필터와 정렬(R1~R5)은 아직 없고 저장된 가게를 전부 돌려준다
 router.get('/', (req, res) => {
+  const now = new Date();
   const places = store.getPlaces().map((place) => ({
     ...toPlaceResponse(place),
     reviewCount: visibleReviews(place.id).length,
+    ...placeStats(place.id, now),
   }));
 
   res.json({ places });
@@ -97,7 +114,7 @@ router.get('/:id', (req, res) => {
     .sort((a, b) => b.createdAt.localeCompare(a.createdAt))
     .map(toReviewResponse);
 
-  res.json({ place: toPlaceResponse(place), reviews });
+  res.json({ place: toPlaceResponse(place), stats: placeStats(place.id, new Date()), reviews });
 });
 
 module.exports = router;

@@ -114,6 +114,13 @@
   cursor: pointer;
 }
 
+/* 가게 상세의 비율, 가격, 마지막 기록 */
+.place-stats {
+  margin: 0 0 8px;
+  font-size: 13px;
+  color: #2a6fdb;
+}
+
 /* 한 줄 추천 아래의 작은 신고 버튼 */
 .report-button {
   margin-top: 4px;
