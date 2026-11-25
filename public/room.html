@@ -28,6 +28,15 @@
       <button id="create-button" type="button" disabled>방 만들기</button>
       <p id="create-message" class="sub" role="status"></p>
 
+      <!-- 말로 후보 찾기. 기록이 있는 가게 중에서 LLM이 바꾼 필터로 고른다 (POST /api/places/ask) -->
+      <form id="ask-form">
+        <label for="ask-input">말로 후보 찾기</label>
+        <div class="search-row">
+          <input id="ask-input" type="search" placeholder="예: 8천원 이하로 혼밥하기 좋은 데" autocomplete="off" maxlength="100" required>
+          <button id="ask-button" type="submit">찾기</button>
+        </div>
+      </form>
+
       <form id="candidate-search-form">
         <label for="candidate-search-input">후보 가게 찾기</label>
         <div class="search-row">

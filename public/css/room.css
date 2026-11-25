@@ -32,8 +32,20 @@
 }
 
 /* 고른 후보와 방 만들기 버튼 아래, 검색 칸 위에 간격을 둔다 */
+#ask-form,
 #candidate-search-form {
   margin-top: 24px;
+}
+
+#ask-form label {
+  display: block;
+  margin-bottom: 6px;
+  font-size: 13px;
+  color: #888;
+}
+
+#candidate-search-form {
+  margin-top: 14px;
 }
 
 /* 가게 한 줄. 왼쪽에 이름과 분류, 오른쪽에 버튼 */

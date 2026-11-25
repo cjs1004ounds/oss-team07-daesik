@@ -87,6 +87,9 @@ function startCreate() {
   document.getElementById('create-view').hidden = false;
 
   const form = document.getElementById('candidate-search-form');
+  const askForm = document.getElementById('ask-form');
+  const askInput = document.getElementById('ask-input');
+  const askButton = document.getElementById('ask-button');
   const input = document.getElementById('candidate-search-input');
   const searchButton = document.getElementById('candidate-search-button');
   const searchMessage = document.getElementById('candidate-search-message');
@@ -129,6 +132,40 @@ function startCreate() {
       lastResults = [];
     } finally {
       searchButton.disabled = false;
+    }
+    drawCreate();
+  });
+
+  // 말로 후보 찾기. LLM이 말을 필터로 바꾸고, 기록이 있는 가게 중에서 거른 결과를 검색 결과 자리에 보여 준다
+  askForm.addEventListener('submit', async (event) => {
+    event.preventDefault();
+    const question = askInput.value.trim();
+    if (question === '') {
+      return;
+    }
+
+    askButton.disabled = true;
+    searchMessage.textContent = '말을 필터로 바꾸는 중입니다.';
+    try {
+      const result = await postJson('/api/places/ask', { question: question });
+      if (!result.ok) {
+        searchMessage.textContent = result.data.error || '찾지 못했습니다.';
+        lastResults = [];
+      } else if (result.data.message) {
+        searchMessage.textContent = result.data.message;
+        lastResults = [];
+      } else {
+        const filterText = describeFilter(result.data.filter);
+        lastResults = result.data.places;
+        searchMessage.textContent = lastResults.length === 0
+          ? filterText + '에 맞는 기록 있는 가게가 없습니다. 아래에서 직접 검색해 보세요.'
+          : filterText + '로 찾은 기록 있는 가게입니다.';
+      }
+    } catch (err) {
+      searchMessage.textContent = '서버에 연결하지 못했습니다. 잠시 뒤에 다시 해 주세요.';
+      lastResults = [];
+    } finally {
+      askButton.disabled = false;
     }
     drawCreate();
   });
@@ -218,6 +255,24 @@ function startCreate() {
   }
 
   drawCreate();
+}
+
+// 말로 찾기가 만든 필터를 사람이 읽는 말로. 예: "1인 8,000원 이하, 혼밥"
+function describeFilter(filter) {
+  const parts = [];
+  if (filter.maxPrice) {
+    parts.push('1인 ' + filter.maxPrice.toLocaleString('ko-KR') + '원 이하');
+  }
+  if (filter.category) {
+    parts.push(filter.category);
+  }
+  if (filter.tags && filter.tags.length > 0) {
+    parts.push(filter.tags.join(', '));
+  }
+  if (filter.maxWalk) {
+    parts.push('걸어서 ' + filter.maxWalk + '분 안');
+  }
+  return parts.join(', ');
 }
 
 // ---------- 방 ----------
