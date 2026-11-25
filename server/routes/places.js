@@ -7,6 +7,7 @@ const searchCache = require('../../shared/searchCache');
 const { findPlacesByRecords, mergeResults } = require('../../shared/recordSearch');
 const { againStats, averagePrice, lastRecordAt } = require('../../shared/recordWeight');
 const { shouldExpand, buildExpandPrompt, parseExpansion } = require('../../shared/searchExpand');
+const { needsSummary, summaryKey, buildSummaryPrompt, parseSummary } = require('../../shared/placeSummary');
 const { walkMinutes, isWithinWalk, placeTags, parseFilter, matchesFilter } = require('../../shared/placeFilter');
 
 const router = express.Router();
@@ -209,10 +210,53 @@ router.get('/', (req, res) => {
   res.json({ places });
 });
 
+// 요약은 화면이 기다리는 동안 만들기 때문에 오래 기다리지 않는다
+const SUMMARY_TIMEOUT_MS = 4000;
+
+// 같은 가게의 요약을 동시에 두 번 만들지 않게, 만드는 중인 것을 들고 있는다
+const summariesInProgress = new Map();
+
+// 가게 한 줄 요약. 추천이 그대로면 저장해 둔 요약을 쓰고, 달라졌으면 LLM으로 다시 만든다.
+// 추천이 2개보다 적거나 LLM이 실패하면 null
+async function getPlaceSummary(place, reviews, clientKey) {
+  if (!needsSummary(reviews)) {
+    return null;
+  }
+  const key = summaryKey(reviews);
+  if (place.summary && place.summary.key === key) {
+    return place.summary.text;
+  }
+
+  if (!summariesInProgress.has(place.id)) {
+    const job = (async () => {
+      try {
+        const raw = await llm.generateJson(buildSummaryPrompt(place.name, reviews), {
+          timeoutMs: SUMMARY_TIMEOUT_MS,
+          clientKey: clientKey,
+        });
+        const result = parseSummary(raw);
+        if (!result.ok) {
+          console.error('가게 요약을 쓸 수 없습니다: ' + result.error);
+          return null;
+        }
+        store.setPlaceSummary(place.id, { text: result.value, key: key });
+        return result.value;
+      } catch (err) {
+        console.error('가게 요약 실패: ' + err.message);
+        return null;
+      } finally {
+        summariesInProgress.delete(place.id);
+      }
+    })();
+    summariesInProgress.set(place.id, job);
+  }
+  return summariesInProgress.get(place.id);
+}
+
 // GET /api/places/:id
 // 가게 하나와 그 가게의 한 줄 추천. 추천은 최근에 남긴 것이 앞에 오고, 숨긴 글은 뺀다.
 // /search 보다 아래에 둬야 /search 가 가게 id로 읽히지 않는다
-router.get('/:id', (req, res) => {
+router.get('/:id', async (req, res) => {
   const place = store.getPlace(req.params.id);
   if (!place) {
     res.status(404).json({ error: '없는 가게입니다.' });
@@ -223,7 +267,8 @@ router.get('/:id', (req, res) => {
     .sort((a, b) => b.createdAt.localeCompare(a.createdAt))
     .map(toReviewResponse);
 
-  res.json({ place: toPlaceResponse(place), stats: placeStats(place.id, new Date()), reviews });
+  const summary = await getPlaceSummary(place, visibleReviews(place.id), req.ip);
+  res.json({ place: toPlaceResponse(place), stats: placeStats(place.id, new Date()), summary: summary, reviews });
 });
 
 module.exports = router;

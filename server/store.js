@@ -247,6 +247,22 @@ function updateRoom(code, changes) {
   return structuredClone(room);
 }
 
+// 가게에 LLM 요약을 적어 둔다. key는 어떤 추천들로 만든 요약인지 알아보는 표시다
+function setPlaceSummary(placeId, summary) {
+  ensureLoaded();
+  const place = places.find((item) => item.id === placeId);
+  if (!place) {
+    return null;
+  }
+  place.summary = {
+    text: summary.text,
+    key: summary.key,
+    createdAt: new Date().toISOString(),
+  };
+  writeList('places.json', places);
+  return place;
+}
+
 // 한 줄 추천 하나. 없으면 null
 function getReview(id) {
   ensureLoaded();
@@ -324,6 +340,7 @@ module.exports = {
   getRoom,
   addRoom,
   updateRoom,
+  setPlaceSummary,
   getReview,
   setReviewModeration,
   hideReview,
