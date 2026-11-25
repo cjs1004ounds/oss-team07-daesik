@@ -200,6 +200,9 @@ async function showPlaceDetail(placeId) {
   category.textContent = `${shortCategory(place.category)} · 한 줄 추천 ${reviews.length}개`;
 
   panelEl.append(title, category);
+  if (body.stats) {
+    panelEl.append(makeStatsLine(body.stats));
+  }
 
   if (map) {
     map.panTo(new kakao.maps.LatLng(place.lat, place.lng));
@@ -243,6 +246,28 @@ async function showPlaceDetail(placeId) {
   }
 
   panelEl.append(list);
+}
+
+// 가게 상세의 비율, 가격, 마지막 기록 한 줄 (R14). 최근 기록일수록 크게 반영한 값이다
+function makeStatsLine(stats) {
+  const parts = [];
+  if (stats.againRatio === null) {
+    parts.push(`또 갈래요 비율은 기록 부족 (교내 인증 응답 ${stats.responseCount}개)`);
+  } else {
+    parts.push(`또 갈래요 ${stats.againRatio}% (교내 인증 응답 ${stats.responseCount}개)`);
+  }
+  if (stats.averagePrice !== null) {
+    parts.push(`1인 약 ${stats.averagePrice.toLocaleString('ko-KR')}원`);
+  }
+  if (stats.lastRecordAt) {
+    parts.push(`마지막 기록 ${formatDate(stats.lastRecordAt)}`);
+  }
+
+  const line = document.createElement('p');
+  line.className = 'place-stats';
+  line.textContent = parts.join(', ');
+  line.title = '최근 기록일수록 크게 반영하고, 1년이 지난 기록은 넣지 않습니다.';
+  return line;
 }
 
 // 한 줄 추천을 신고한다. 숨겨지면 목록에서 바로 빼고, 아니면 신고했다고만 보여 준다
