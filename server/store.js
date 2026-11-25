@@ -17,6 +17,7 @@ let visits = null;
 let rooms = null;
 let reports = null;
 let statuses = null;
+let priceRanges = null;
 
 // 실행 중에 쓰는 파일이 있는 폴더. 테스트에서는 DATA_DIR로 임시 폴더를 가리킨다
 function getDataDir() {
@@ -59,11 +60,12 @@ function load() {
   rooms = readList('rooms.json');
   reports = readList('reports.json');
   statuses = readList('statuses.json');
+  priceRanges = readList('priceRanges.json');
 }
 
 // load()를 안 부르고 쓰더라도 동작하게 한다
 function ensureLoaded() {
-  if (places === null || reviews === null || verifications === null || visits === null || rooms === null || reports === null || statuses === null) {
+  if (places === null || reviews === null || verifications === null || visits === null || rooms === null || reports === null || statuses === null || priceRanges === null) {
     load();
   }
 }
@@ -362,6 +364,27 @@ function addStatus(status) {
   return newStatus;
 }
 
+// 가게 종류 하나의 보통 1인 가격 범위 (R17). 없으면 null
+function getPriceRange(key) {
+  ensureLoaded();
+  const found = priceRanges.find((item) => item.key === key);
+  return found || null;
+}
+
+// 보통 가격 범위를 저장한다. 같은 종류가 있으면 새 값으로 바꾼다
+function savePriceRange(key, range) {
+  ensureLoaded();
+  const saved = { key: key, min: range.min, max: range.max, savedAt: new Date().toISOString() };
+  const index = priceRanges.findIndex((item) => item.key === key);
+  if (index === -1) {
+    priceRanges.push(saved);
+  } else {
+    priceRanges[index] = saved;
+  }
+  writeList('priceRanges.json', priceRanges);
+  return saved;
+}
+
 module.exports = {
   load,
   getPlaces,
@@ -388,4 +411,6 @@ module.exports = {
   addReport,
   getStatusesByPlace,
   addStatus,
+  getPriceRange,
+  savePriceRange,
 };

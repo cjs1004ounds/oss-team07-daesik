@@ -156,3 +156,59 @@ test('검사는 아무것도 저장하지 않는다', async () => {
   const files = fs.existsSync(path.join(dataDir, 'runtime')) ? fs.readdirSync(path.join(dataDir, 'runtime')) : [];
   assert.deepStrictEqual(files, []);
 });
+
+// 가격 검사 (R17)
+
+const store = require('../server/store');
+const priceRanges = require('../server/priceRanges');
+
+test('글에 적힌 가격과 가격 칸이 다르면 고칠 가격과 함께 알려 준다', async () => {
+  test.mock.method(llm, 'generateJson', async () => '{"issues":[]}');
+
+  const res = await check({ text: '제육 7천원인데 양 많음', price: 99999, category: '음식점 > 일식' });
+
+  assert.deepStrictEqual(res.body.issues, [
+    { kind: 'price', message: '글에는 7,000원인데 가격 칸은 99,999원이에요.', suggestedPrice: 7000 },
+  ]);
+});
+
+test('글과 가격이 맞으면 가격 문제는 없다', async () => {
+  test.mock.method(llm, 'generateJson', async () => '{"issues":[]}');
+  const res = await check({ text: '제육 7천원인데 양 많음', price: 7000, category: '음식점 > 일식' });
+  assert.deepStrictEqual(res.body.issues, []);
+});
+
+test('글에 가격이 없으면 LLM이 알려 준 보통 범위로 가격을 본다', async () => {
+  priceRanges.resetFailures();
+  test.mock.method(llm, 'generateJson', async (prompt) =>
+    prompt.includes('<종류>') ? '{"min":7000,"max":12000}' : '{"issues":[]}'
+  );
+
+  const high = await check({ text: '맛있고 양 많음', price: 90000, category: '음식점 > 한식 > 찌개' });
+  const fine = await check({ text: '맛있고 양 많음', price: 9000, category: '음식점 > 한식 > 찌개' });
+
+  assert.deepStrictEqual(high.body.issues.map((issue) => issue.kind), ['price']);
+  assert.strictEqual(high.body.issues[0].suggestedPrice, undefined);
+  assert.deepStrictEqual(fine.body.issues, []);
+});
+
+test('같은 가게의 다른 기록과 차이가 크면 알려 준다', async () => {
+  test.mock.method(llm, 'generateJson', async () => {
+    throw new Error('GEMINI_API_KEY가 없습니다.');
+  });
+  store.load();
+  store.addPlace({ id: 'peer-1', name: '비교식당', lat: 37.62, lng: 127.058, category: '음식점 > 분식' });
+  store.addReview({ placeId: 'peer-1', text: '떡볶이', price: 5000, tags: [], anonId: 'a' });
+  store.addReview({ placeId: 'peer-1', text: '순대', price: 6000, tags: [], anonId: 'b' });
+
+  const res = await check({ text: '튀김 맛있음', price: 50000, placeId: 'peer-1' });
+
+  assert.deepStrictEqual(res.body.issues.map((issue) => issue.kind), ['price']);
+  assert.ok(res.body.issues[0].message.includes('5,500원'));
+});
+
+test('가격을 안 보내면 가격은 보지 않는다', async () => {
+  test.mock.method(llm, 'generateJson', async () => '{"issues":[]}');
+  const res = await check({ text: '제육 7천원인데 양 많음', price: null });
+  assert.deepStrictEqual(res.body.issues, []);
+});

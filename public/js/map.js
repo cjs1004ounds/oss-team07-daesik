@@ -242,7 +242,9 @@ async function showPlaceDetail(placeId) {
     // 가격과 태그는 적은 경우에만 보여 준다
     const extras = [];
     if (review.price !== null && review.price !== undefined) {
-      extras.push(`1인 ${review.price.toLocaleString('ko-KR')}원`);
+      // 이상한 가격으로 보류된 것(R17)은 평균에 안 들어간다고 알려 준다
+      const held = review.priceHeld ? ' (가격 확인 중, 평균에서 뺌)' : '';
+      extras.push(`1인 ${review.price.toLocaleString('ko-KR')}원${held}`);
     }
     if (Array.isArray(review.tags)) {
       extras.push(...review.tags);

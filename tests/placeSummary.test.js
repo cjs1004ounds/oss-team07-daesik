@@ -135,7 +135,9 @@ test('추천이 새로 생기면 요약을 다시 만든다', async () => {
   answer = '{"summary":"국밥이 든든한데 가격이 올랐다는 말도 있어요"}';
   const after = await detail('s2');
 
-  assert.strictEqual(fake.mock.callCount(), 2);
+  // 가격이 있는 추천이 생기면 보통 가격 범위(R17)도 한 번 묻는다. 여기서는 요약을 만든 호출만 센다
+  const summaryCalls = fake.mock.calls.filter((call) => call.arguments[0].includes('<추천>'));
+  assert.strictEqual(summaryCalls.length, 2);
   assert.strictEqual(after.summary, '국밥이 든든한데 가격이 올랐다는 말도 있어요');
 });
 
