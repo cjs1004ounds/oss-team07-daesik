@@ -160,6 +160,42 @@
   gap: 6px;
 }
 
+/* 다녀왔어요 칸. 옅은 강조색 배경으로 지금 상황 칸과 구분한다 */
+.visit-box {
+  margin: 0 0 10px;
+  padding: 8px 10px;
+  border-radius: 6px;
+  background: #f0f5fd;
+}
+
+.visit-text {
+  margin: 0 0 6px;
+  font-size: 13px;
+}
+
+.visit-hint {
+  display: block;
+  margin-top: 6px;
+  font-size: 12px;
+}
+
+/* 흰 바탕 버튼 (글쎄요) */
+.live-buttons .button-quiet {
+  background: #fff;
+  color: #2a6fdb;
+}
+
+.live-buttons .button-quiet:hover {
+  background: #e1ebfb;
+  color: #1f5cbd;
+}
+
+.live-buttons button:disabled {
+  background: #a9c1ea;
+  border-color: #a9c1ea;
+  color: #fff;
+}
+
 .live-buttons button {
   padding: 5px 10px;
   font-size: 13px;

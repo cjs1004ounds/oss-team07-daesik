@@ -405,9 +405,11 @@ async function showPlaceDetail(placeId) {
   category.textContent = `${shortCategory(place.category)} · 한 줄 추천 ${reviews.length}개`;
 
   panelEl.append(title, category);
-  if (body.stats) {
-    panelEl.append(makeStatsLine(body.stats));
-  }
+  const statsLine = makeStatsLine(body.stats || { againRatio: null, responseCount: 0, averagePrice: null, lastRecordAt: null });
+  panelEl.append(statsLine);
+
+  // 다녀왔어요. "또 갈래요"나 "글쎄요"를 남기면 위의 비율 줄을 새로 그린다
+  panelEl.append(makeVisitBox(place.id, statsLine));
 
   // 지금 상황 (R16). 30분 안 제보와 제보 버튼
   panelEl.append(makeLiveBox(place.id, body.live));
@@ -476,6 +478,89 @@ function liveText(live) {
   const minutes = Math.max(1, Math.round((Date.now() - new Date(live.latestAt).getTime()) / 60000));
   const latest = live.latestKind === 'waiting' ? '웨이팅 있다는' : '자리 있다는';
   return `${minutes}분 전 ${latest} 제보 (30분 안에 웨이팅 ${live.waiting}, 자리 ${live.seats})`;
+}
+
+// 가게 상세의 다녀왔어요 칸. "또 갈래요"(again: true)나 "글쎄요"(again: false)를 POST /api/visits로 남긴다.
+// 같은 가게에는 하루에 한 번만 남길 수 있다(R7). 남긴 뒤에는 비율 줄(statsLine)을 새 값으로 바꾼다
+function makeVisitBox(placeId, statsLine) {
+  const box = document.createElement('div');
+  box.className = 'visit-box';
+
+  const text = document.createElement('p');
+  text.className = 'visit-text';
+  text.textContent = '다녀오셨나요? 어땠는지 남겨 주세요.';
+
+  const buttons = document.createElement('div');
+  buttons.className = 'live-buttons';
+
+  const setDisabled = (disabled) => {
+    for (const button of buttons.querySelectorAll('button')) {
+      button.disabled = disabled;
+    }
+  };
+
+  for (const [again, label] of [[true, '또 갈래요'], [false, '글쎄요']]) {
+    const button = document.createElement('button');
+    button.type = 'button';
+    button.textContent = label;
+    if (!again) {
+      button.className = 'button-quiet';
+    }
+    button.addEventListener('click', async () => {
+      setDisabled(true);
+      try {
+        const res = await fetch('/api/visits', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ placeId: placeId, again: again, anonId: getOrCreateAnonId() }),
+        });
+        const data = await res.json();
+
+        if (!res.ok) {
+          // 409는 오늘 이미 남긴 경우다. 버튼은 꺼 둔 채로 안내만 보여 준다
+          text.textContent = data.error || '남기지 못했습니다.';
+          if (res.status !== 409) {
+            setDisabled(false);
+          }
+          return;
+        }
+
+        text.textContent = '"' + label + '"로 남겼습니다.';
+        // 교내 인증 없이 남긴 응답은 비율에 들어가지 않는다 (R14). 인증하는 곳을 알려 준다
+        if (!data.visit.verified) {
+          const hint = document.createElement('a');
+          hint.href = '/search.html';
+          hint.className = 'visit-hint';
+          hint.textContent = '교내 인증을 하면 다음 응답부터 비율에 들어갑니다. 인증하러 가기';
+          box.append(hint);
+        }
+        await refreshStats(placeId, statsLine);
+      } catch (err) {
+        text.textContent = '서버에 연결하지 못했습니다. 잠시 뒤에 다시 해 주세요.';
+        setDisabled(false);
+      }
+    });
+    buttons.append(button);
+  }
+
+  box.append(text, buttons);
+  return box;
+}
+
+// 가게 상세를 다시 불러 비율 줄만 새 값으로 바꾼다. 못 불러오면 그대로 둔다
+async function refreshStats(placeId, statsLine) {
+  try {
+    const res = await fetch('/api/places/' + encodeURIComponent(placeId));
+    if (!res.ok) {
+      return;
+    }
+    const body = await res.json();
+    if (body.stats) {
+      statsLine.replaceWith(makeStatsLine(body.stats));
+    }
+  } catch (err) {
+    // 비율 줄은 다음에 상세를 열 때 새로 나온다
+  }
 }
 
 // 가게 상세의 지금 상황 칸. 제보 내용과 "웨이팅 있어요", "자리 있어요" 버튼
