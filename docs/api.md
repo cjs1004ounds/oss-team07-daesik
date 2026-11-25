@@ -372,6 +372,31 @@ GET /api/places?maxPrice=8000&category=한식&tags=혼밥,가성비
 - 인증한 적이 없거나 30일이 지났으면 `{ "verified": false }`
 - 다른 API에서 인증 여부가 필요하면 저장 모듈의 `store.isVerified(anonId)`를 씁니다.
 
+## POST /api/reviews/check
+
+한 줄 추천을 저장하기 전에 문제 될 내용이 있는지 알려 줍니다. 저장하지는 않습니다. 작성 화면은 저장 버튼을 누르면 먼저 이걸 부르고, 걸린 게 있으면 그래도 저장할지 묻습니다.
+
+요청
+
+```json
+{ "text": "사장님 번호 010-1234-5678", "placeName": "윤스쿡" }
+```
+
+응답 200
+
+```json
+{
+  "issues": [{ "kind": "personal", "message": "전화번호가 들어 있어요." }],
+  "checkedBy": ["rules", "llm"]
+}
+```
+
+- `kind`: `personal`(개인정보), `abuse`(욕설, 비방), `ad`(광고), `unrelated`(가게와 상관없음), `unfounded`(근거 없는 단정)
+- 전화번호, 이메일, 학번처럼 보이는 숫자는 규칙으로 찾고(`shared/reviewCheck.js`), 나머지는 LLM에게 묻습니다.
+- LLM이 없거나 실패하면 `checkedBy`가 `["rules"]`이고 규칙 결과만 돌려줍니다.
+- 같은 종류는 한 번만, 3개까지 돌려줍니다.
+- `text`가 없거나 100자를 넘으면 400
+
 ## POST /api/reports
 
 한 줄 추천을 신고합니다. 신고 수와 LLM 판단으로 숨길지 정합니다(R15).
