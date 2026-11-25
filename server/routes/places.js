@@ -8,7 +8,9 @@ const { findPlacesByRecords, mergeResults } = require('../../shared/recordSearch
 const { againStats, averagePrice, lastRecordAt } = require('../../shared/recordWeight');
 const { shouldExpand, buildExpandPrompt, parseExpansion } = require('../../shared/searchExpand');
 const { needsSummary, summaryKey, buildSummaryPrompt, parseSummary } = require('../../shared/placeSummary');
-const { walkMinutes, isWithinWalk, placeTags, parseFilter, matchesFilter } = require('../../shared/placeFilter');
+const { COMMON_CATEGORIES, MAX_QUESTION_LENGTH, buildAskPrompt, parseAsk, isEmptyFilter } = require('../../shared/askFilter');
+const { ALLOWED_TAGS } = require('../../shared/reviewValidator');
+const { walkMinutes, isWithinWalk, placeTags, parseFilter, matchesFilter, shortCategory } = require('../../shared/placeFilter');
 
 const router = express.Router();
 
@@ -191,8 +193,16 @@ router.get('/', (req, res) => {
     return;
   }
 
+  res.json({ places: listPlaces(filter.value) });
+});
+
+// 기록이 있는 가게 목록을 만들어 거른다. GET /api/places와 말로 찾기가 같이 쓴다.
+// maxWalk(걸어서 몇 분 안)는 말로 찾기에서만 온다. 없으면 R2의 15분만 본다
+function listPlaces(filter) {
   const now = new Date();
-  const places = store
+  // R3 필터(matchesFilter)는 음식 종류가 없으면 빈 문자열을 받는다. 말로 찾기는 null을 줘서 맞춘다
+  const r3Filter = { maxPrice: filter.maxPrice, category: filter.category || '', tags: filter.tags };
+  return store
     .getPlaces()
     .map((place) => {
       const reviews = visibleReviews(place.id);
@@ -205,9 +215,73 @@ router.get('/', (req, res) => {
       };
     })
     .filter((place) => isWithinWalk(place.walkMinutes))
-    .filter((place) => matchesFilter(place, filter.value));
+    .filter((place) => !filter.maxWalk || place.walkMinutes <= filter.maxWalk)
+    .filter((place) => matchesFilter(place, r3Filter));
+}
 
-  res.json({ places });
+// 말로 찾기에서 고를 수 있는 음식 종류. 자주 나오는 것에 지금 기록된 가게의 종류를 더한다
+function askCategories() {
+  const categories = [...COMMON_CATEGORIES];
+  for (const place of store.getPlaces()) {
+    const category = shortCategory(place.category);
+    if (category !== '' && !categories.includes(category)) {
+      categories.push(category);
+    }
+  }
+  return categories;
+}
+
+// 말로 찾기 결과를 문장별로 저장해 두는 곳. 같은 문장으로 LLM을 다시 부르지 않으려는 것이다
+const askCache = new Map();
+const ASK_CACHE_MS = 24 * 60 * 60 * 1000;
+const ASK_TIMEOUT_MS = 5000;
+
+// POST /api/places/ask
+// "8천원 이하로 혼밥하기 좋은 데"를 LLM이 필터로 바꾸고, 그 필터로 GET /api/places처럼 거른다.
+// LLM은 필터 값만 만들고 가게를 고르거나 순서를 바꾸지 않는다
+router.post('/ask', async (req, res) => {
+  const { question } = req.body || {};
+  const text = typeof question === 'string' ? question.trim().replace(/\s+/g, ' ') : '';
+  if (text === '' || text.length > MAX_QUESTION_LENGTH) {
+    res.status(400).json({ error: '찾고 싶은 것을 ' + MAX_QUESTION_LENGTH + '자 안으로 적어 주세요.' });
+    return;
+  }
+
+  const cacheKey = text.toLowerCase();
+  const saved = askCache.get(cacheKey);
+  let filter = saved && Date.now() - saved.savedAt < ASK_CACHE_MS ? saved.filter : null;
+
+  if (!filter) {
+    try {
+      const categories = askCategories();
+      const raw = await llm.generateJson(buildAskPrompt(text, categories, ALLOWED_TAGS), {
+        timeoutMs: ASK_TIMEOUT_MS,
+        clientKey: req.ip,
+      });
+      const result = parseAsk(raw, categories, ALLOWED_TAGS);
+      if (!result.ok) {
+        console.error('말로 찾기 응답을 쓸 수 없습니다: ' + result.error);
+        res.status(503).json({ error: '말을 필터로 바꾸지 못했습니다. 필터를 직접 골라 주세요.' });
+        return;
+      }
+      filter = result.value;
+      askCache.set(cacheKey, { filter: filter, savedAt: Date.now() });
+    } catch (err) {
+      console.error('말로 찾기 실패: ' + err.message);
+      if (err.code === 'LLM_LIMIT') {
+        res.status(429).json({ error: '잠시 뒤에 다시 해 주세요. 필터는 직접 고를 수 있습니다.' });
+        return;
+      }
+      res.status(503).json({ error: '지금은 말로 찾기를 쓸 수 없습니다. 필터를 직접 골라 주세요.' });
+      return;
+    }
+  }
+
+  if (isEmptyFilter(filter)) {
+    res.json({ filter: filter, places: [], message: '어떤 가게를 찾는지 알아듣지 못했습니다. 가격, 음식 종류, 혼밥 같은 말을 넣어 보세요.' });
+    return;
+  }
+  res.json({ filter: filter, places: listPlaces(filter) });
 });
 
 // 요약은 화면이 기다리는 동안 만들기 때문에 오래 기다리지 않는다

@@ -272,6 +272,31 @@ GET /api/places?maxPrice=8000&category=한식&tags=혼밥,가성비
 
 학교 기준점은 아직 정하지 않아서 지도 가운데와 같은 값(37.61924, 127.05827)을 씁니다(`shared/placeFilter.js`의 `SCHOOL`).
 
+## POST /api/places/ask
+
+말로 찾기입니다. "8천원 이하로 혼밥하기 좋은 데"를 LLM이 필터로 바꾸고, 그 필터로 `GET /api/places`처럼 거른 가게를 돌려줍니다(`shared/askFilter.js`). LLM은 필터 값만 만들고 가게를 고르거나 순서를 바꾸지 않습니다. 같이 정하기 방 만들기 화면의 "말로 후보 찾기"가 씁니다.
+
+요청
+
+```json
+{ "question": "8천원 이하로 혼밥하기 좋은 데" }
+```
+
+응답 200
+
+```json
+{
+  "filter": { "maxPrice": 8000, "category": null, "tags": ["혼밥"], "maxWalk": null },
+  "places": []
+}
+```
+
+- `places`는 `GET /api/places`의 가게와 같은 모양입니다.
+- `maxPrice`는 1,000~100,000원, `category`는 정해진 음식 종류 목록과 지금 기록된 가게의 종류 중 하나, `tags`는 R6 태그 목록, `maxWalk`는 걸어서 1~15분입니다. 벗어난 값은 버립니다.
+- 필터가 하나도 안 나오면 빈 `places`와 `message`(다시 적어 보라는 안내)를 줍니다.
+- 같은 문장은 하루 동안 결과를 저장해 두고 LLM을 다시 부르지 않습니다.
+- 질문이 없거나 100자를 넘으면 400, LLM이 없거나 실패하면 503, LLM 한도를 넘으면 429
+
 ## GET /api/places/:id
 
 가게 하나와 그 가게의 한 줄 추천입니다.
