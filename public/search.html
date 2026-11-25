@@ -34,6 +34,12 @@
       </div>
     </form>
 
+    <!-- 요즘 많이 먹는 메뉴. 누르면 그 메뉴로 검색한다 (GET /api/trends). 기록이 없으면 숨긴다 -->
+    <section id="trends" class="trends" hidden>
+      <h2>요즘 많이 먹는 메뉴</h2>
+      <div id="trend-list" class="trend-list"></div>
+    </section>
+
     <!-- 검색 중, 결과 없음, 오류 같은 안내가 들어가는 자리 -->
     <p id="search-message" role="status"></p>
 

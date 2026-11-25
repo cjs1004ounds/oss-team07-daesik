@@ -266,6 +266,19 @@ function setPlaceSummary(placeId, summary) {
   return place;
 }
 
+// 한 줄 추천에 LLM이 뽑은 메뉴를 적어 둔다. 메뉴가 없어도 뽑았다는 표시(menusCheckedAt)를 남겨 다시 묻지 않는다
+function setReviewMenus(id, menus) {
+  ensureLoaded();
+  const review = reviews.find((item) => item.id === id);
+  if (!review) {
+    return null;
+  }
+  review.menus = Array.isArray(menus) ? menus : [];
+  review.menusCheckedAt = new Date().toISOString();
+  writeList('reviews.json', reviews);
+  return review;
+}
+
 // 한 줄 추천 하나. 없으면 null
 function getReview(id) {
   ensureLoaded();
@@ -367,6 +380,7 @@ module.exports = {
   addRoom,
   updateRoom,
   setPlaceSummary,
+  setReviewMenus,
   getReview,
   setReviewModeration,
   hideReview,
