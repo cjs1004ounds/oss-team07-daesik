@@ -114,6 +114,30 @@
   cursor: pointer;
 }
 
+/* 한 줄 추천 아래의 작은 신고 버튼 */
+.report-button {
+  margin-top: 4px;
+  padding: 0;
+  border: none;
+  background: none;
+  color: #999;
+  font-size: 12px;
+  cursor: pointer;
+}
+
+.report-button:hover {
+  background: none;
+  color: #c0392b;
+  text-decoration: underline;
+}
+
+.report-button:disabled {
+  background: none;
+  color: #999;
+  text-decoration: none;
+  cursor: default;
+}
+
 /* 작은 휴대폰 */
 @media (max-width: 360px) {
   .side-panel {
