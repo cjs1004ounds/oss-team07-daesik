@@ -121,6 +121,21 @@
   color: #2a6fdb;
 }
 
+/* 가게 상세의 LLM 요약. 옅은 배경 상자 */
+.place-summary {
+  margin: 0 0 10px;
+  padding: 8px 10px;
+  border-radius: 6px;
+  background: #f0f5fd;
+  font-size: 14px;
+}
+
+.place-summary::before {
+  content: "요약 ";
+  font-weight: 700;
+  color: #2a6fdb;
+}
+
 /* 한 줄 추천 아래의 작은 신고 버튼 */
 .report-button {
   margin-top: 4px;

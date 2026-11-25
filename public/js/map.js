@@ -204,6 +204,15 @@ async function showPlaceDetail(placeId) {
     panelEl.append(makeStatsLine(body.stats));
   }
 
+  // 한 줄 추천들을 LLM이 정리한 요약. 추천이 2개보다 적거나 만들지 못했으면 없다
+  if (body.summary) {
+    const summary = document.createElement('p');
+    summary.className = 'place-summary';
+    summary.textContent = body.summary;
+    summary.title = '한 줄 추천들을 모아 LLM이 정리한 요약입니다.';
+    panelEl.append(summary);
+  }
+
   if (map) {
     map.panTo(new kakao.maps.LatLng(place.lat, place.lng));
   }
