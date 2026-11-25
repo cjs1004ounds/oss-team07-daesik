@@ -5,6 +5,7 @@ const store = require('../store');
 const searchCache = require('../../shared/searchCache');
 const { findPlacesByRecords, mergeResults } = require('../../shared/recordSearch');
 const { againStats, averagePrice, lastRecordAt } = require('../../shared/recordWeight');
+const { walkMinutes, isWithinWalk, placeTags, parseFilter, matchesFilter } = require('../../shared/placeFilter');
 
 const router = express.Router();
 
@@ -85,17 +86,33 @@ function placeStats(placeId, now) {
   };
 }
 
-// GET /api/places
+// GET /api/places?maxPrice=8000&category=한식&tags=혼밥,가성비
 // 기록이 있는 가게 목록. 가게마다 한 줄 추천 수(reviewCount)를 붙인다. 숨긴 글은 세지 않는다.
-// 또 갈래요 비율, 1인 가격 평균, 마지막 기록 날짜(R14)도 붙인다.
-// 필터와 정렬(R1~R5)은 아직 없고 저장된 가게를 전부 돌려준다
+// 또 갈래요 비율, 1인 가격 평균, 마지막 기록 날짜(R14)와 도보 시간(R1), 가게 태그(R3)도 붙인다.
+// 학교에서 걸어서 15분이 넘는 가게는 뺀다(R2). 쿼리를 보내면 가격 상한, 음식 종류, 태그로 거른다(R3).
+// 정렬(R5)은 아직 없다
 router.get('/', (req, res) => {
+  const filter = parseFilter(req.query);
+  if (!filter.ok) {
+    res.status(400).json({ error: filter.error });
+    return;
+  }
+
   const now = new Date();
-  const places = store.getPlaces().map((place) => ({
-    ...toPlaceResponse(place),
-    reviewCount: visibleReviews(place.id).length,
-    ...placeStats(place.id, now),
-  }));
+  const places = store
+    .getPlaces()
+    .map((place) => {
+      const reviews = visibleReviews(place.id);
+      return {
+        ...toPlaceResponse(place),
+        reviewCount: reviews.length,
+        ...placeStats(place.id, now),
+        walkMinutes: walkMinutes(place),
+        tags: placeTags(reviews),
+      };
+    })
+    .filter((place) => isWithinWalk(place.walkMinutes))
+    .filter((place) => matchesFilter(place, filter.value));
 
   res.json({ places });
 });
