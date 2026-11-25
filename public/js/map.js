@@ -2,6 +2,8 @@
 // 서버에서 카카오 JavaScript 키를 받아 카카오맵을 띄운다.
 // 기록이 있는 가게를 마커로 찍고, 마커나 옆 칸의 목록을 누르면 그 가게의 한 줄 추천을 옆 칸에 보여 준다 (이슈 #13).
 // 지도를 못 띄워도 옆 칸의 목록과 상세는 그대로 쓸 수 있다.
+// 옆 칸 위의 필터 칸에서 가격 상한, 음식 종류, 태그를 고르면 GET /api/places 를 다시 불러
+// 목록과 마커를 바꾼다 (이슈 #133). 거르기(R1~R3)와 정렬(R5)은 서버가 한다.
 
 // 지도 가운데. 카카오에서 찾은 광운대학교 위치를 임시로 쓴다.
 // 가게 검색의 가운데(server/kakao.js의 SEARCH_CENTER)와 같은 값이다. 바꿀 때는 두 곳을 같이 바꾼다.
@@ -24,6 +26,23 @@ let map = null;
 
 // GET /api/places 로 받은 가게 목록. 지도와 옆 칸이 같이 쓴다
 let places = [];
+
+// 지금 지도에 얹은 마커. 필터를 바꿔 다시 찍을 때 먼저 지운다
+let overlays = [];
+
+// 필터 칸에서 고를 수 있는 태그. R6 태그 목록과 같다.
+// public/js/review.js, shared/reviewValidator.js, README에도 같은 목록이 있다. 바꿀 때는 네 곳을 같이 바꾼다
+const FILTER_TAGS = ['양 많음', '혼밥', '가성비', '빨리 나옴', '조용함', '단체 가능', '늦게까지 함', '매움', '청결함'];
+
+// 지금 고른 필터. 서버에 보낼 값 그대로 둔다
+const filter = { maxPrice: '', category: '', tags: [] };
+
+// 음식 종류 칸에 넣을 종류. 필터 없이 받은 가게들의 종류를 모은다.
+// 필터로 걸러진 목록에서만 모으면 다른 종류로 바꿀 수 없게 되기 때문이다
+const knownCategories = [];
+
+// 필터 칸. 한 번만 만들고, 옆 칸을 다시 그릴 때마다 같은 칸을 다시 붙여서 고른 값이 남게 한다
+const filterForm = makeFilterForm();
 
 startMap();
 loadPlaces();
@@ -86,31 +105,177 @@ function drawMap() {
   });
 }
 
-// 기록이 있는 가게 목록을 받아 옆 칸에 보여 준다.
+// 기록이 있는 가게 목록을 받아 옆 칸에 보여 준다. 필터를 고른 상태면 그 조건을 같이 보낸다.
 // 지도가 먼저 떠 있으면 마커도 이때 찍는다. 지도가 나중에 뜨면 drawMap 다음에 찍는다
 async function loadPlaces() {
+  let body;
   try {
-    const res = await fetch('/api/places');
+    const res = await fetch('/api/places' + filterQuery());
+    body = await res.json();
     if (!res.ok) {
-      throw new Error('가게 목록 요청 실패');
+      // 가격 상한이 숫자가 아니면 서버가 400과 이유를 돌려준다
+      throw new Error(body.error || '가게 목록 요청 실패');
     }
-    const body = await res.json();
-    places = body.places;
   } catch (err) {
     showPanelMessage('가게 목록을 불러오지 못했습니다. 잠시 뒤에 새로고침해 주세요.');
     return;
   }
 
+  places = body.places;
+  if (!hasFilter()) {
+    rememberCategories(places);
+  }
+  updateCategoryOptions();
+
   showPlaceList();
   drawMarkers();
+}
+
+// 지금 고른 필터를 주소 쿼리로. 고른 것이 없으면 빈 문자열
+function filterQuery() {
+  const params = new URLSearchParams();
+  if (filter.maxPrice !== '') {
+    params.set('maxPrice', filter.maxPrice);
+  }
+  if (filter.category !== '') {
+    params.set('category', filter.category);
+  }
+  if (filter.tags.length > 0) {
+    params.set('tags', filter.tags.join(','));
+  }
+  const query = params.toString();
+  return query === '' ? '' : '?' + query;
+}
+
+function hasFilter() {
+  return filter.maxPrice !== '' || filter.category !== '' || filter.tags.length > 0;
+}
+
+function rememberCategories(list) {
+  for (const place of list) {
+    const category = shortCategory(place.category);
+    if (category !== '' && !knownCategories.includes(category)) {
+      knownCategories.push(category);
+    }
+  }
+  knownCategories.sort((a, b) => a.localeCompare(b, 'ko'));
+}
+
+// 필터 칸: 1인 가격 상한, 음식 종류, 태그, 필터 지우기
+function makeFilterForm() {
+  const form = document.createElement('form');
+  form.className = 'filter-form';
+  form.setAttribute('aria-label', '가게 거르기');
+
+  // 1인 가격 상한. 숫자만 받고, 비우면 거르지 않는다
+  const priceLabel = document.createElement('label');
+  priceLabel.className = 'filter-field';
+  priceLabel.textContent = '1인 가격 상한(원)';
+  const priceInput = document.createElement('input');
+  priceInput.type = 'text';
+  priceInput.inputMode = 'numeric';
+  priceInput.name = 'maxPrice';
+  priceInput.placeholder = '예: 9000';
+  priceInput.autocomplete = 'off';
+  // 쉼표나 글자를 쳐도 숫자만 남긴다. 서버는 숫자만 받는다 (R3)
+  priceInput.addEventListener('input', () => {
+    priceInput.value = priceInput.value.replace(/[^0-9]/g, '');
+  });
+  // 칸을 벗어나거나 Enter를 치면 적용한다
+  priceInput.addEventListener('change', () => applyFilter());
+  priceLabel.append(priceInput);
+
+  // 음식 종류. 기록된 가게의 종류에서 고른다
+  const categoryLabel = document.createElement('label');
+  categoryLabel.className = 'filter-field';
+  categoryLabel.textContent = '음식 종류';
+  const categorySelect = document.createElement('select');
+  categorySelect.name = 'category';
+  categorySelect.addEventListener('change', () => applyFilter());
+  categoryLabel.append(categorySelect);
+
+  // 태그. 여러 개 고르면 모두 나온 가게만 남는다 (R3)
+  const tagGroup = document.createElement('div');
+  tagGroup.className = 'filter-tags';
+  tagGroup.setAttribute('role', 'group');
+  tagGroup.setAttribute('aria-label', '태그 (고른 태그가 모두 있는 가게만)');
+  for (const tag of FILTER_TAGS) {
+    const button = document.createElement('button');
+    button.type = 'button';
+    button.className = 'tag-button';
+    button.textContent = tag;
+    button.dataset.tag = tag;
+    button.setAttribute('aria-pressed', 'false');
+    button.addEventListener('click', () => {
+      const pressed = button.getAttribute('aria-pressed') === 'true';
+      button.setAttribute('aria-pressed', pressed ? 'false' : 'true');
+      applyFilter();
+    });
+    tagGroup.append(button);
+  }
+
+  const clearButton = document.createElement('button');
+  clearButton.type = 'button';
+  clearButton.className = 'link-button filter-clear';
+  clearButton.textContent = '필터 지우기';
+  clearButton.addEventListener('click', clearFilter);
+
+  // Enter를 쳐도 페이지가 다시 열리지 않게 막고 적용만 한다
+  form.addEventListener('submit', (event) => {
+    event.preventDefault();
+    applyFilter();
+  });
+
+  form.append(priceLabel, categoryLabel, tagGroup, clearButton);
+  return form;
+}
+
+// 음식 종류 칸의 목록을 지금 아는 종류로 다시 채운다. 고른 값은 그대로 둔다
+function updateCategoryOptions() {
+  const select = filterForm.elements.category;
+  const all = document.createElement('option');
+  all.value = '';
+  all.textContent = '전체';
+  const options = [all];
+  for (const category of knownCategories) {
+    const option = document.createElement('option');
+    option.value = category;
+    option.textContent = category;
+    options.push(option);
+  }
+  select.replaceChildren(...options);
+  select.value = filter.category;
+}
+
+// 필터 칸의 값을 읽어 다시 불러온다
+function applyFilter() {
+  filter.maxPrice = filterForm.elements.maxPrice.value.trim();
+  filter.category = filterForm.elements.category.value;
+  filter.tags = [...filterForm.querySelectorAll('.tag-button[aria-pressed="true"]')].map((button) => button.dataset.tag);
+  loadPlaces();
+}
+
+function clearFilter() {
+  filterForm.elements.maxPrice.value = '';
+  filterForm.elements.category.value = '';
+  for (const button of filterForm.querySelectorAll('.tag-button')) {
+    button.setAttribute('aria-pressed', 'false');
+  }
+  applyFilter();
 }
 
 // 가게마다 기록 수가 적힌 마커를 찍는다.
 // 카카오 기본 마커에는 글자를 넣을 수 없어서, 버튼을 만들어 지도 위에 얹는다(CustomOverlay)
 function drawMarkers() {
-  if (!map || places.length === 0) {
+  if (!map) {
     return;
   }
+
+  // 필터를 바꾸면 전에 찍은 마커를 지우고 새로 찍는다
+  for (const overlay of overlays) {
+    overlay.setMap(null);
+  }
+  overlays = [];
 
   for (const place of places) {
     const button = document.createElement('button');
@@ -127,6 +292,7 @@ function drawMarkers() {
       yAnchor: 1,
     });
     overlay.setMap(map);
+    overlays.push(overlay);
   }
 }
 
@@ -136,13 +302,33 @@ function showPlaceList() {
 
   const title = document.createElement('h2');
   title.textContent = '기록이 있는 가게';
-  panelEl.append(title);
+
+  // 기록이 하나도 없을 때는 필터 칸을 보여 줄 필요가 없다
+  if (places.length === 0 && !hasFilter()) {
+    const empty = document.createElement('p');
+    empty.className = 'sub';
+    empty.textContent = '아직 기록이 없습니다. 오른쪽 위의 기록 남기기에서 첫 한 줄 추천을 남겨 주세요.';
+    panelEl.append(title, empty);
+    return;
+  }
+
+  // 순서 안내. 정렬은 서버가 한다 (R5)
+  const order = document.createElement('p');
+  order.className = 'sub';
+  order.textContent = `걸어서 15분 안 ${places.length}곳 · 또 갈래요 비율이 높은 순`;
+
+  panelEl.append(title, filterForm, order);
 
   if (places.length === 0) {
     const empty = document.createElement('p');
     empty.className = 'sub';
-    empty.textContent = '아직 기록이 없습니다. 오른쪽 위의 기록 남기기에서 첫 한 줄 추천을 남겨 주세요.';
-    panelEl.append(empty);
+    empty.textContent = '조건에 맞는 가게가 없습니다.';
+    const clear = document.createElement('button');
+    clear.type = 'button';
+    clear.className = 'link-button';
+    clear.textContent = '필터 지우기';
+    clear.addEventListener('click', clearFilter);
+    panelEl.append(empty, clear);
     return;
   }
 
@@ -161,7 +347,7 @@ function showPlaceList() {
 
     const info = document.createElement('span');
     info.className = 'sub';
-    info.textContent = `${shortCategory(place.category)} · 한 줄 추천 ${place.reviewCount}개`;
+    info.textContent = placeSummaryText(place);
 
     button.append(name, info);
 
@@ -177,6 +363,17 @@ function showPlaceList() {
   }
 
   panelEl.append(list);
+}
+
+// 목록의 가게 한 줄 설명: 종류 · 걸어서 몇 분 · 또 갈래요 비율 · 추천 수
+function placeSummaryText(place) {
+  const parts = [shortCategory(place.category)];
+  if (Number.isFinite(place.walkMinutes)) {
+    parts.push(`걸어서 ${place.walkMinutes}분`);
+  }
+  parts.push(place.againRatio === null || place.againRatio === undefined ? '기록 부족' : `또 갈래요 ${place.againRatio}%`);
+  parts.push(`추천 ${place.reviewCount}개`);
+  return parts.filter((part) => part !== '').join(' · ');
 }
 
 // 옆 칸: 가게 하나와 그 가게의 한 줄 추천
