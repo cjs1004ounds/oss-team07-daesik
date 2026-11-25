@@ -198,6 +198,16 @@
 - 등록되지 않은 `placeId`만 보냈으면 404
 - 같은 익명 ID가 같은 가게에 오늘(한국 시간) 이미 응답을 남겼으면 409와 안내 문구 (R7)
 
+## 기록 시간 가중치 (R14)
+
+`GET /api/places`와 `GET /api/places/:id`가 돌려주는 비율, 가격, 마지막 기록은 최근 기록일수록 크게 반영한 값입니다(`shared/recordWeight.js`).
+
+- 무게 = 0.5 ^ (지난 날수 / 90). 오늘 1, 90일 전 0.5, 180일 전 0.25. 365일이 지나면 넣지 않습니다.
+- `againRatio`: "또 갈래요" 비율(0~100 정수). 교내 인증된 응답만 넣고, 넣을 응답이 3개보다 적으면 `null`("기록 부족")
+- `responseCount`: 비율에 넣은 응답 수 (교내 인증, 365일 안)
+- `averagePrice`: 1인 가격 평균. 가격이 적힌 한 줄 추천을 같은 무게로 평균 내고 100원 단위로 반올림. 없으면 `null`
+- `lastRecordAt`: 가장 최근 한 줄 추천이나 응답의 시각. 숨긴 글은 빼고, 없으면 `null`
+
 ## GET /api/places
 
 기록이 있는 가게 목록입니다. 중간발표까지는 필터와 정렬 없이 전부 돌려줍니다.
@@ -213,7 +223,11 @@
       "lat": 37.6195,
       "lng": 127.0589,
       "category": "음식점 > 한식",
-      "reviewCount": 2
+      "reviewCount": 2,
+      "responseCount": 4,
+      "againRatio": 67,
+      "averagePrice": 8000,
+      "lastRecordAt": "2026-11-25T03:00:00.000Z"
     }
   ]
 }
@@ -233,6 +247,12 @@
     "lat": 37.6195,
     "lng": 127.0589,
     "category": "음식점 > 한식"
+  },
+  "stats": {
+    "responseCount": 4,
+    "againRatio": 67,
+    "averagePrice": 8000,
+    "lastRecordAt": "2026-11-25T03:00:00.000Z"
   },
   "reviews": [
     {
