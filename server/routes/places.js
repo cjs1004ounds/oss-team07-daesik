@@ -24,6 +24,9 @@ const EXPAND_TIMEOUT_MS = 4000;
 // 한 번에 돌려주는 가게 수
 const MAX_SEARCH_RESULTS = 30;
 
+// 검색어 최대 길이. 긴 문장으로 LLM 토큰을 많이 쓰게 만드는 것을 막는다
+const MAX_QUERY_LENGTH = 50;
+
 // 카카오 검색. 같은 검색어는 10분 동안 저장해 둔 결과를 쓴다 (R9). 실패하면 오류를 던진다
 async function searchKakao(query) {
   const cached = searchCache.getCached(cache, query, Date.now());
@@ -37,7 +40,7 @@ async function searchKakao(query) {
 
 // LLM에게 넓힌 검색어를 받는다. 키가 없거나 실패하면 빈 목록이고, 그 결과도 하루 동안 저장한다
 // (한도를 넘었을 때 검색할 때마다 다시 부르지 않게)
-async function getExpandedKeywords(query) {
+async function getExpandedKeywords(query, clientKey) {
   const saved = expandCache.get(query);
   if (saved && Date.now() - saved.savedAt < EXPAND_CACHE_MS) {
     return saved.keywords;
@@ -45,7 +48,7 @@ async function getExpandedKeywords(query) {
 
   let keywords = [];
   try {
-    const raw = await llm.generateJson(buildExpandPrompt(query), { timeoutMs: EXPAND_TIMEOUT_MS });
+    const raw = await llm.generateJson(buildExpandPrompt(query), { timeoutMs: EXPAND_TIMEOUT_MS, clientKey: clientKey });
     const result = parseExpansion(raw, query);
     if (result.ok) {
       keywords = result.value;
@@ -54,6 +57,10 @@ async function getExpandedKeywords(query) {
     }
   } catch (err) {
     console.error('검색어 넓히기 실패: ' + err.message);
+    // 사람별 한도에 걸린 것은 그 사람 사정이라 저장하지 않는다. 다른 사람이 같은 검색어로 찾으면 넓힐 수 있게
+    if (err.code === 'LLM_LIMIT') {
+      return [];
+    }
   }
 
   expandCache.set(query, { keywords: keywords, savedAt: Date.now() });
@@ -82,6 +89,10 @@ router.get('/search', async (req, res) => {
     res.status(400).json({ error: '검색어를 입력해 주세요.' });
     return;
   }
+  if (query.length > MAX_QUERY_LENGTH) {
+    res.status(400).json({ error: '검색어는 ' + MAX_QUERY_LENGTH + '자까지 입력할 수 있습니다.' });
+    return;
+  }
 
   // 기록에서 찾는 것은 저장해 두지 않고 매번 한다. 방금 남긴 기록도 바로 찾히게 하려는 것이다
   const places = store.getPlaces();
@@ -105,7 +116,7 @@ router.get('/search', async (req, res) => {
   const results = mergeResults(recordPlaces, kakaoPlaces);
 
   if (shouldExpand(results.length)) {
-    const keywords = await getExpandedKeywords(query);
+    const keywords = await getExpandedKeywords(query, req.ip);
     // 넓힌 검색어들은 한꺼번에 찾는다. 하나가 실패해도 나머지는 쓴다
     const found = await Promise.all(
       keywords.map(async (keyword) => {
