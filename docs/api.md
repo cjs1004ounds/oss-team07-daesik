@@ -272,6 +272,30 @@ GET /api/places?maxPrice=8000&category=한식&tags=혼밥,가성비
 
 학교 기준점은 아직 정하지 않아서 지도 가운데와 같은 값(37.61924, 127.05827)을 씁니다(`shared/placeFilter.js`의 `SCHOOL`).
 
+## POST /api/places/:id/status
+
+지금 상황 제보입니다(R16, `shared/liveStatus.js`). 가게의 실시간 정보를 받을 곳이 없어서, 지금 그 가게에 있거나 지나간 학생이 버튼으로 알려 줍니다. 30분 동안만 보입니다.
+
+요청
+
+```json
+{ "kind": "waiting", "anonId": "익명 ID" }
+```
+
+응답 201
+
+```json
+{ "live": { "waiting": 1, "seats": 0, "latestKind": "waiting", "latestAt": "2026-11-25T03:00:00.000Z" } }
+```
+
+- `kind`: `waiting`(웨이팅 있어요), `seats`(자리 있어요). 아니면 400
+- 같은 익명 ID는 같은 가게에 30분에 한 번만. 이미 했으면 409
+- 같은 접속 IP는 1시간에 20번까지. 넘으면 429
+- 없는 가게면 404
+- 하루가 지난 제보는 저장할 때 지웁니다.
+
+`GET /api/places`의 가게마다, 그리고 `GET /api/places/:id`에 `live`가 붙습니다. `waiting`, `seats`는 30분 안의 종류별 제보 수(같은 사람은 한 번), `latestKind`, `latestAt`은 가장 최근 제보입니다. 30분 안 제보가 없으면 `null`입니다.
+
 ## POST /api/places/ask
 
 말로 찾기입니다. "8천원 이하로 혼밥하기 좋은 데"를 LLM이 필터로 바꾸고, 그 필터로 `GET /api/places`처럼 거른 가게를 돌려줍니다(`shared/askFilter.js`). LLM은 필터 값만 만들고 가게를 고르거나 순서를 바꾸지 않습니다. 같이 정하기 방 만들기 화면의 "말로 후보 찾기"가 씁니다.
