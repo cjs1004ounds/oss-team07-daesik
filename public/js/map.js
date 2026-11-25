@@ -447,6 +447,10 @@ async function showPlaceDetail(placeId) {
       extras.push(...review.tags);
     }
     extras.push(formatDate(review.createdAt));
+    // 쓴 사람의 칭호 (R18). 교내 인증하고 기록을 남긴 사람에게만 있다
+    if (review.writerTitle) {
+      extras.push('칭호 ' + review.writerTitle);
+    }
 
     const meta = document.createElement('p');
     meta.className = 'sub';
