@@ -58,7 +58,8 @@ function showMessage(text) {
 
 // 가게마다 버튼을 하나씩 만들어 목록에 넣는다.
 // 가게 이름 같은 값은 textContent로 넣어서 HTML로 해석되지 않게 한다.
-// 우리 기록으로 찾은 가게(fromRecords)에는 그렇다고 한 줄 더 보여 준다
+// 우리 기록으로 찾은 가게(fromRecords)에는 그렇다고 한 줄 더 보여 준다.
+// 연관 검색어로 찾은 가게(via)에는 어떤 검색어로 찾았는지 보여 준다
 function showResults(places) {
   for (const place of places) {
     const name = document.createElement('strong');
@@ -85,6 +86,13 @@ function showResults(places) {
       record.className = 'place-record';
       record.textContent = '한 줄 추천에서 찾음';
       placeButton.append(record);
+    }
+
+    if (place.via) {
+      const via = document.createElement('span');
+      via.className = 'place-via';
+      via.textContent = '연관 검색어: ' + place.via;
+      placeButton.append(via);
     }
 
     // 주소. 기록으로만 찾은 가게는 주소를 저장하지 않아서 없다

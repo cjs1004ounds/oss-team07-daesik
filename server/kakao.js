@@ -24,17 +24,17 @@ function toPlace(document) {
   };
 }
 
-// 검색어로 학교 근처 음식점을 찾아 배열로 돌려준다.
-// 키가 없거나 카카오 호출이 실패하면 오류를 던진다. 받는 쪽에서 502로 바꾼다
-async function searchPlaces(query) {
-  const key = process.env.KAKAO_REST_API_KEY;
-  if (!key) {
-    throw new Error('KAKAO_REST_API_KEY가 없습니다.');
-  }
+// 찾는 카카오 분류. 음식점(FD6)과 카페(CE7)
+const CATEGORY_CODES = ['FD6', 'CE7'];
 
+// 두 분류를 합친 뒤 이 개수까지만 돌려준다
+const MAX_RESULTS = 20;
+
+// 분류 하나로 카카오에 검색해서 카카오가 준 장소 목록을 그대로 돌려준다
+async function searchCategory(key, query, categoryCode) {
   const params = new URLSearchParams({
     query: query,
-    category_group_code: 'FD6', // 음식점만
+    category_group_code: categoryCode,
     x: String(SEARCH_CENTER.lng),
     y: String(SEARCH_CENTER.lat),
     radius: String(SEARCH_RADIUS_M),
@@ -50,10 +50,42 @@ async function searchPlaces(query) {
   }
 
   const data = await res.json();
-  return data.documents.map(toPlace);
+  return data.documents;
+}
+
+// 검색어로 학교 근처 음식점과 카페를 찾아 배열로 돌려준다.
+// 두 분류를 같이 찾아서 학교에서 가까운 순으로 합친다. 카페는 음식점 분류에 없어서 따로 찾아야 한다.
+// 키가 없거나 카카오 호출이 실패하면 오류를 던진다. 받는 쪽에서 502로 바꾼다
+async function searchPlaces(query) {
+  const key = process.env.KAKAO_REST_API_KEY;
+  if (!key) {
+    throw new Error('KAKAO_REST_API_KEY가 없습니다.');
+  }
+
+  const lists = await Promise.all(CATEGORY_CODES.map((code) => searchCategory(key, query, code)));
+
+  // 카카오는 가운데 좌표를 주면 distance(m)를 문자열로 준다. 없으면 가장 먼 것으로 친다
+  const documents = lists.flat();
+  const distanceOf = (document) => {
+    const meters = Number(document.distance);
+    return document.distance === '' || Number.isNaN(meters) ? Infinity : meters;
+  };
+  documents.sort((a, b) => distanceOf(a) - distanceOf(b));
+
+  const seen = new Set();
+  const places = [];
+  for (const document of documents) {
+    if (!seen.has(document.id)) {
+      seen.add(document.id);
+      places.push(toPlace(document));
+    }
+  }
+  return places.slice(0, MAX_RESULTS);
 }
 
 module.exports = {
+  CATEGORY_CODES,
+  MAX_RESULTS,
   SEARCH_CENTER,
   SEARCH_RADIUS_M,
   toPlace,

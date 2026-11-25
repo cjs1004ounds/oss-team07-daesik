@@ -1,10 +1,12 @@
 const express = require('express');
 
 const kakao = require('../kakao');
+const llm = require('../llm');
 const store = require('../store');
 const searchCache = require('../../shared/searchCache');
 const { findPlacesByRecords, mergeResults } = require('../../shared/recordSearch');
 const { againStats, averagePrice, lastRecordAt } = require('../../shared/recordWeight');
+const { shouldExpand, buildExpandPrompt, parseExpansion } = require('../../shared/searchExpand');
 const { walkMinutes, isWithinWalk, placeTags, parseFilter, matchesFilter } = require('../../shared/placeFilter');
 
 const router = express.Router();
@@ -12,9 +14,68 @@ const router = express.Router();
 // 검색 결과를 잠깐 저장해 두는 곳 (R9). 서버를 끄면 사라져도 되는 값이라 파일에 쓰지 않는다
 const cache = new Map();
 
+// LLM이 넓혀 준 검색어를 검색어별로 저장해 두는 곳. 같은 검색어로 LLM을 다시 부르지 않으려는 것이다
+const expandCache = new Map();
+const EXPAND_CACHE_MS = 24 * 60 * 60 * 1000;
+
+// 검색어 넓히기는 화면이 기다리는 동안 하는 일이라 오래 기다리지 않는다
+const EXPAND_TIMEOUT_MS = 4000;
+
+// 한 번에 돌려주는 가게 수
+const MAX_SEARCH_RESULTS = 30;
+
+// 카카오 검색. 같은 검색어는 10분 동안 저장해 둔 결과를 쓴다 (R9). 실패하면 오류를 던진다
+async function searchKakao(query) {
+  const cached = searchCache.getCached(cache, query, Date.now());
+  if (cached) {
+    return cached;
+  }
+  const places = await kakao.searchPlaces(query);
+  searchCache.setCached(cache, query, places, Date.now());
+  return places;
+}
+
+// LLM에게 넓힌 검색어를 받는다. 키가 없거나 실패하면 빈 목록이고, 그 결과도 하루 동안 저장한다
+// (한도를 넘었을 때 검색할 때마다 다시 부르지 않게)
+async function getExpandedKeywords(query) {
+  const saved = expandCache.get(query);
+  if (saved && Date.now() - saved.savedAt < EXPAND_CACHE_MS) {
+    return saved.keywords;
+  }
+
+  let keywords = [];
+  try {
+    const raw = await llm.generateJson(buildExpandPrompt(query), { timeoutMs: EXPAND_TIMEOUT_MS });
+    const result = parseExpansion(raw, query);
+    if (result.ok) {
+      keywords = result.value;
+    } else {
+      console.error('검색어 넓히기 응답을 쓸 수 없습니다: ' + result.error);
+    }
+  } catch (err) {
+    console.error('검색어 넓히기 실패: ' + err.message);
+  }
+
+  expandCache.set(query, { keywords: keywords, savedAt: Date.now() });
+  return keywords;
+}
+
+// 앞의 목록에 없는 가게만 뒤에 붙인다. via가 있으면 어떤 검색어로 찾았는지 붙인다
+function appendNew(list, places, via) {
+  const ids = new Set(list.map((place) => place.id));
+  for (const place of places) {
+    if (!ids.has(place.id)) {
+      ids.add(place.id);
+      list.push(via ? { ...place, via: via } : place);
+    }
+  }
+  return list;
+}
+
 // GET /api/places/search?q=검색어
-// 카카오 로컬 API로 가게를 검색한다. 같은 검색어는 10분 동안 저장해 둔 결과를 돌려준다.
-// 우리 기록에 검색어가 적힌 가게는 카카오 결과 앞에 붙인다 (예: "제육"이 적힌 한 줄 추천이 있는 가게)
+// 카카오 로컬 API로 음식점과 카페를 검색한다. 같은 검색어는 10분 동안 저장해 둔 결과를 쓴다 (R9).
+// 우리 기록에 검색어가 적힌 가게는 카카오 결과 앞에 붙인다 (예: "제육"이 적힌 한 줄 추천이 있는 가게).
+// 결과가 적으면 LLM이 넓혀 준 검색어(예: 제육 -> 제육볶음)로 한 번 더 찾아 뒤에 붙인다
 router.get('/search', async (req, res) => {
   const query = searchCache.normalizeQuery(req.query.q);
   if (query === '') {
@@ -23,27 +84,47 @@ router.get('/search', async (req, res) => {
   }
 
   // 기록에서 찾는 것은 저장해 두지 않고 매번 한다. 방금 남긴 기록도 바로 찾히게 하려는 것이다
-  const recordPlaces = findPlacesByRecords(store.getPlaces(), store.getReviews(), query);
+  const places = store.getPlaces();
+  const reviews = store.getReviews();
+  const recordPlaces = findPlacesByRecords(places, reviews, query);
 
-  const cached = searchCache.getCached(cache, query, Date.now());
-  if (cached) {
-    res.json({ places: mergeResults(recordPlaces, cached) });
-    return;
-  }
-
+  let kakaoPlaces;
   try {
-    const places = await kakao.searchPlaces(query);
-    searchCache.setCached(cache, query, places, Date.now());
-    res.json({ places: mergeResults(recordPlaces, places) });
+    kakaoPlaces = await searchKakao(query);
   } catch (err) {
     console.error(err.message);
-    // 카카오를 못 써도 기록으로 찾은 가게가 있으면 그것만이라도 보여 준다
+    // 카카오를 못 써도 기록으로 찾은 가게가 있으면 그것만이라도 보여 준다. 이때는 검색어를 넓히지 않는다
     if (recordPlaces.length > 0) {
       res.json({ places: recordPlaces });
       return;
     }
     res.status(502).json({ error: '가게 검색을 지금 쓸 수 없습니다. 잠시 뒤에 다시 해 주세요.' });
+    return;
   }
+
+  const results = mergeResults(recordPlaces, kakaoPlaces);
+
+  if (shouldExpand(results.length)) {
+    const keywords = await getExpandedKeywords(query);
+    // 넓힌 검색어들은 한꺼번에 찾는다. 하나가 실패해도 나머지는 쓴다
+    const found = await Promise.all(
+      keywords.map(async (keyword) => {
+        const fromRecords = findPlacesByRecords(places, reviews, keyword);
+        let fromKakao = [];
+        try {
+          fromKakao = await searchKakao(keyword);
+        } catch (err) {
+          console.error(err.message);
+        }
+        return { keyword: keyword, places: mergeResults(fromRecords, fromKakao) };
+      })
+    );
+    for (const item of found) {
+      appendNew(results, item.places, item.keyword);
+    }
+  }
+
+  res.json({ places: results.slice(0, MAX_SEARCH_RESULTS) });
 });
 
 // 화면에 내보낼 가게 값. 저장된 가게에 다른 값이 더 붙어 있어도 이것만 내보낸다
