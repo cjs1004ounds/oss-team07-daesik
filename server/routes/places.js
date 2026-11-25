@@ -12,6 +12,8 @@ const { COMMON_CATEGORIES, MAX_QUESTION_LENGTH, buildAskPrompt, parseAsk, isEmpt
 const { ALLOWED_TAGS } = require('../../shared/reviewValidator');
 const { isKind, hasRecentReport, summarizeLive } = require('../../shared/liveStatus');
 const { take, cleanUp } = require('../../shared/usageLimit');
+const priceRanges = require('../priceRanges');
+const { findHeldPrices, needsCategoryRange, categoryKey } = require('../../shared/priceCheck');
 const { walkMinutes, isWithinWalk, placeTags, parseFilter, matchesFilter, shortCategory } = require('../../shared/placeFilter');
 
 const router = express.Router();
@@ -155,14 +157,21 @@ function toPlaceResponse(place) {
 }
 
 // 화면에 내보낼 한 줄 추천 값. 익명 ID(anonId)는 내보내지 않는다
-function toReviewResponse(review) {
+// priceHeld는 이상한 가격으로 보류됐는지(R17). 보류된 가격은 보이기는 하고 평균에는 넣지 않는다
+function toReviewResponse(review, held) {
   return {
     id: review.id,
     text: review.text,
     price: review.price,
+    priceHeld: held ? held.has(review.id) : false,
     tags: review.tags,
     createdAt: review.createdAt,
   };
+}
+
+// 가게의 추천에서 보류할 가격을 찾는다 (R17). 보통 가격 범위는 저장해 둔 것만 쓰고 여기서 LLM을 부르지 않는다
+function heldPricesOf(place, reviews) {
+  return findHeldPrices(reviews, priceRanges.getCachedRange(categoryKey(place.category)));
 }
 
 // 보여 줄 한 줄 추천. 신고로 숨긴 글(R15)은 뺀다
@@ -171,14 +180,18 @@ function visibleReviews(placeId) {
 }
 
 // 가게 하나의 비율, 가격, 마지막 기록 (R14). 최근 기록일수록 크게 반영한다
-function placeStats(placeId, now) {
+function placeStats(place, now) {
+  const placeId = place.id;
   const reviews = visibleReviews(placeId);
   const visits = store.getVisitsByPlace(placeId);
   const again = againStats(visits, now);
+  // 보류한 가격(R17)은 평균에 넣지 않는다
+  const held = heldPricesOf(place, reviews);
+  const pricedReviews = reviews.filter((review) => !held.has(review.id));
   return {
     responseCount: again.responseCount,
     againRatio: again.againRatio,
-    averagePrice: averagePrice(reviews, now),
+    averagePrice: averagePrice(pricedReviews, now),
     lastRecordAt: lastRecordAt([...reviews, ...visits]),
   };
 }
@@ -211,7 +224,7 @@ function listPlaces(filter) {
       return {
         ...toPlaceResponse(place),
         reviewCount: reviews.length,
-        ...placeStats(place.id, now),
+        ...placeStats(place, now),
         walkMinutes: walkMinutes(place),
         tags: placeTags(reviews),
         live: summarizeLive(store.getStatusesByPlace(place.id), now),
@@ -340,14 +353,22 @@ router.get('/:id', async (req, res) => {
     return;
   }
 
-  const reviews = visibleReviews(place.id)
-    .sort((a, b) => b.createdAt.localeCompare(a.createdAt))
-    .map(toReviewResponse);
+  const visible = visibleReviews(place.id);
 
-  const summary = await getPlaceSummary(place, visibleReviews(place.id), req.ip);
+  // 요약과 보통 가격 범위(R17)는 같이 기다린다. 범위는 그걸로 판단할 가격이 있을 때만 구한다
+  const [summary] = await Promise.all([
+    getPlaceSummary(place, visible, req.ip),
+    needsCategoryRange(visible) ? priceRanges.ensureRange(categoryKey(place.category), req.ip) : null,
+  ]);
+
+  const held = heldPricesOf(place, visible);
+  const reviews = visible
+    .sort((a, b) => b.createdAt.localeCompare(a.createdAt))
+    .map((review) => toReviewResponse(review, held));
+
   res.json({
     place: toPlaceResponse(place),
-    stats: placeStats(place.id, new Date()),
+    stats: placeStats(place, new Date()),
     live: summarizeLive(store.getStatusesByPlace(place.id), new Date()),
     summary: summary,
     reviews,
