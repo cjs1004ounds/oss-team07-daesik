@@ -287,6 +287,7 @@ GET /api/places?maxPrice=8000&category=한식&tags=혼밥,가성비
     "lng": 127.0589,
     "category": "음식점 > 한식"
   },
+  "summary": "양이 많고 혼밥하기 좋다는 기록이 많아요",
   "stats": {
     "responseCount": 4,
     "againRatio": 67,
@@ -307,6 +308,13 @@ GET /api/places?maxPrice=8000&category=한식&tags=혼밥,가성비
 - 한 줄 추천은 최근에 남긴 것이 앞에 옵니다.
 - 없는 가게면 404
 - 응답에는 `anonId`를 넣지 않습니다.
+
+`summary`는 그 가게의 한 줄 추천들을 LLM이 한 문장으로 정리한 요약입니다(`shared/placeSummary.js`).
+
+- 숨기지 않은 추천이 2개 이상일 때만 만들고, 아니면 `null`
+- 최근 추천 20개까지 보냅니다. 익명 ID는 보내지 않습니다.
+- 만든 요약은 가게에 저장해 두고, 추천이 새로 생기거나 숨겨졌을 때만 다시 만듭니다. 같은 가게를 동시에 열어도 한 번만 만듭니다.
+- LLM은 4초까지만 기다립니다. 실패하거나 한도를 넘으면 `null`이고 나머지는 그대로 나옵니다.
 
 ## POST /api/verify
 
