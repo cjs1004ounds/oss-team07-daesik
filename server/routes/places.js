@@ -66,20 +66,25 @@ function toReviewResponse(review) {
   };
 }
 
+// 보여 줄 한 줄 추천. 신고로 숨긴 글(R15)은 뺀다
+function visibleReviews(placeId) {
+  return store.getReviewsByPlace(placeId).filter((review) => !review.hidden);
+}
+
 // GET /api/places
-// 기록이 있는 가게 목록. 가게마다 한 줄 추천 수(reviewCount)를 붙인다.
+// 기록이 있는 가게 목록. 가게마다 한 줄 추천 수(reviewCount)를 붙인다. 숨긴 글은 세지 않는다.
 // 필터와 정렬(R1~R5)은 아직 없고 저장된 가게를 전부 돌려준다
 router.get('/', (req, res) => {
   const places = store.getPlaces().map((place) => ({
     ...toPlaceResponse(place),
-    reviewCount: store.getReviewsByPlace(place.id).length,
+    reviewCount: visibleReviews(place.id).length,
   }));
 
   res.json({ places });
 });
 
 // GET /api/places/:id
-// 가게 하나와 그 가게의 한 줄 추천. 추천은 최근에 남긴 것이 앞에 온다.
+// 가게 하나와 그 가게의 한 줄 추천. 추천은 최근에 남긴 것이 앞에 오고, 숨긴 글은 뺀다.
 // /search 보다 아래에 둬야 /search 가 가게 id로 읽히지 않는다
 router.get('/:id', (req, res) => {
   const place = store.getPlace(req.params.id);
@@ -88,8 +93,7 @@ router.get('/:id', (req, res) => {
     return;
   }
 
-  const reviews = store
-    .getReviewsByPlace(place.id)
+  const reviews = visibleReviews(place.id)
     .sort((a, b) => b.createdAt.localeCompare(a.createdAt))
     .map(toReviewResponse);
 

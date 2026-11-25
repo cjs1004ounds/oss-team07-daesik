@@ -13,10 +13,11 @@ function compact(text) {
   return text.replace(/\s+/g, '').toLowerCase();
 }
 
-// 한 줄 추천 하나에 검색어가 들어 있는지. 문장과 먹은 메뉴(menu, 있을 때만)를 본다
+// 한 줄 추천 하나에 검색어가 들어 있는지. 문장과 먹은 메뉴(menu, 있을 때만)를 본다.
+// 신고로 숨긴 글(R15)은 찾지 않는다
 function reviewMatches(review, query) {
   const target = compact(query);
-  if (target === '' || !review) {
+  if (target === '' || !review || review.hidden) {
     return false;
   }
   return compact(review.text).includes(target) || compact(review.menu).includes(target);
