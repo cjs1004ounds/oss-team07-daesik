@@ -8,6 +8,7 @@ const configRouter = require('./routes/config');
 const healthRouter = require('./routes/health');
 const placesRouter = require('./routes/places');
 const reportsRouter = require('./routes/reports');
+const reviewCheckRouter = require('./routes/reviewCheck');
 const reviewsRouter = require('./routes/reviews');
 const roomsRouter = require('./routes/rooms');
 const verifyRouter = require('./routes/verify');
@@ -35,6 +36,8 @@ app.use(express.static(path.join(__dirname, '..', 'public')));
 app.use('/api/health', healthRouter);
 app.use('/api/config', configRouter);
 app.use('/api/places', placesRouter);
+// /api/reviews/check 는 /api/reviews 보다 먼저 둔다
+app.use('/api/reviews/check', reviewCheckRouter);
 app.use('/api/reviews', reviewsRouter);
 app.use('/api/verify', verifyRouter);
 app.use('/api/visits', visitsRouter);
