@@ -247,6 +247,8 @@ test('LLM으로 새 추천의 메뉴를 뽑아 세고, 다음에는 다시 묻�
   const second = await getTrends();
 
   assert.strictEqual(first.days, 14);
+  // 메뉴가 2개뿐이라 시간대를 나누지 않는다
+  assert.strictEqual(first.slot, null);
   assert.deepStrictEqual(first.menus.map((m) => [m.name, m.count]), [['제육볶음', 2], ['돈까스', 1]]);
   assert.deepStrictEqual(first.menus[0].places, [{ id: 'yoon', name: '윤스쿡' }]);
   assert.deepStrictEqual(second.menus, first.menus);
@@ -267,6 +269,16 @@ test('LLM이 실패하면 이미 뽑아 둔 것으로만 세고, 다음에 다�
 
   assert.deepStrictEqual(failed.menus.map((m) => m.name), ['제육볶음', '돈까스']);
   assert.ok(later.menus.some((m) => m.name === '라멘'));
+});
+
+test('지금 시간대에 쓴 메뉴가 충분하면 slot에 지금 시간대가 오고 그 메뉴만 센다', async () => {
+  // 앞의 테스트에서 방금 쓴 추천으로 제육볶음, 돈까스, 라멘이 있다
+  test.mock.method(llm, 'generateJson', async () => '{"menus":{}}');
+  const now = slotOf(Date.now());
+  const body = await getTrends();
+
+  assert.deepStrictEqual(body.slot, { key: now.key, label: now.label });
+  assert.deepStrictEqual(body.menus.map((m) => m.name).sort(), ['돈까스', '라멘', '제육볶음']);
 });
 
 test('새 추천이 없으면 LLM을 부르지 않는다', async () => {
