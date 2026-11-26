@@ -360,3 +360,18 @@
   background: #f0f5fd;
   color: #1f5cbd;
 }
+
+/* 요약 아래의 좋은 점, 아쉬운 점 */
+.summary-points {
+  margin: -4px 0 8px;
+  padding: 0 10px;
+  font-size: 13px;
+}
+
+.point-good strong {
+  color: #1e8449;
+}
+
+.point-bad strong {
+  color: #b9770e;
+}

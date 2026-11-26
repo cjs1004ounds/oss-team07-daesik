@@ -421,6 +421,20 @@ async function showPlaceDetail(placeId) {
     summary.textContent = body.summary;
     summary.title = '한 줄 추천들을 모아 LLM이 정리한 요약입니다.';
     panelEl.append(summary);
+
+    // 요약과 같이 뽑은 좋은 점과 아쉬운 점. 없는 쪽은 줄을 만들지 않는다
+    const points = body.summaryPoints || { good: [], bad: [] };
+    for (const [label, list, className] of [['좋은 점', points.good, 'point-good'], ['아쉬운 점', points.bad, 'point-bad']]) {
+      if (!Array.isArray(list) || list.length === 0) {
+        continue;
+      }
+      const line = document.createElement('p');
+      line.className = 'summary-points ' + className;
+      const name = document.createElement('strong');
+      name.textContent = label;
+      line.append(name, ' ' + list.join(', '));
+      panelEl.append(line);
+    }
   }
 
   if (map) {
