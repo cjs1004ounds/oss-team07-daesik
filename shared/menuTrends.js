@@ -1,6 +1,7 @@
 // 요즘 많이 먹는 메뉴.
 // LLM이 한 줄 추천에서 메뉴 이름을 뽑아 두고(review.menus), 최근 14일 동안 메뉴마다 몇 개의 추천에 나왔는지 센다.
 // 세는 것은 규칙이 하고, LLM은 글에서 메뉴 이름만 뽑는다.
+// 지금 시간대(점심, 저녁 같은)에 쓴 추천만 따로 세서 그 시간대에 많이 먹는 메뉴도 보여 준다.
 
 const TREND_DAYS = 14;
 const MAX_TRENDS = 8;
@@ -9,6 +10,19 @@ const BATCH_SIZE = 20;
 const MAX_MENUS_PER_REVIEW = 3;
 // 가게 상세에 보여 주는 그 가게의 메뉴 수
 const MAX_PLACE_MENUS = 5;
+
+// 하루를 나눈 시간대(한국 시간). from시부터 to시 전까지다. 밤은 자정을 넘어가서 from이 to보다 크다
+const TIME_SLOTS = [
+  { key: 'morning', label: '아침', from: 6, to: 11 },
+  { key: 'lunch', label: '점심', from: 11, to: 15 },
+  { key: 'afternoon', label: '오후', from: 15, to: 17 },
+  { key: 'dinner', label: '저녁', from: 17, to: 21 },
+  { key: 'night', label: '밤', from: 21, to: 6 },
+];
+// 지금 시간대의 메뉴가 이보다 적으면 시간대를 나누지 않은 것을 보여 준다
+const MIN_SLOT_MENUS = 3;
+// 한국 시간은 UTC보다 9시간 빠르다
+const KOREA_OFFSET_MS = 9 * 60 * 60 * 1000;
 const MAX_MENU_LENGTH = 15;
 
 const DAY_MS = 24 * 60 * 60 * 1000;
@@ -111,15 +125,61 @@ function reviewsToExtract(reviews, now) {
 // 메뉴마다 몇 개의 추천에 나왔는지 세고, 많은 순, 같으면 최근에 나온 순으로 8개까지.
 // 추천의 menus(LLM이 뽑은 것)와 menu(사용자가 적은 먹은 메뉴)를 같이 본다
 function trendingMenus(reviews, places, now) {
+  return toTrendList(countMenus(recentReviews(reviews, now)), places);
+}
+
+// 센 것(countMenus의 결과)을 8개까지 자르고, 메뉴마다 그 메뉴가 나온 가게의 이름을 붙인다
+function toTrendList(entries, places) {
   const placeNames = new Map((Array.isArray(places) ? places : []).map((place) => [place.id, place.name]));
 
-  return countMenus(recentReviews(reviews, now))
-    .slice(0, MAX_TRENDS)
-    .map((entry) => ({
-      name: entry.name,
-      count: entry.count,
-      places: entry.placeIds.filter((id) => placeNames.has(id)).map((id) => ({ id: id, name: placeNames.get(id) })),
-    }));
+  return entries.slice(0, MAX_TRENDS).map((entry) => ({
+    name: entry.name,
+    count: entry.count,
+    places: entry.placeIds.filter((id) => placeNames.has(id)).map((id) => ({ id: id, name: placeNames.get(id) })),
+  }));
+}
+
+// 한국 시간으로 몇 시인지(0부터 23). 시각을 읽을 수 없으면 -1
+function koreaHour(time) {
+  const ms = new Date(time).getTime();
+  if (Number.isNaN(ms)) {
+    return -1;
+  }
+  return new Date(ms + KOREA_OFFSET_MS).getUTCHours();
+}
+
+// 그 시각이 들어가는 시간대(TIME_SLOTS 중 하나). 시각을 읽을 수 없으면 null
+function slotOf(time) {
+  const hour = koreaHour(time);
+  if (hour < 0) {
+    return null;
+  }
+  for (const slot of TIME_SLOTS) {
+    if (slot.from < slot.to && hour >= slot.from && hour < slot.to) {
+      return slot;
+    }
+    // 밤처럼 자정을 넘어가는 시간대
+    if (slot.from > slot.to && (hour >= slot.from || hour < slot.to)) {
+      return slot;
+    }
+  }
+  return null;
+}
+
+// 지금 시간대에 많이 먹는 메뉴.
+// 최근 14일의 추천 중에서 쓴 시각이 지금과 같은 시간대인 것만 센다. 먹은 시각을 따로 받지 않아서 쓴 시각을 먹은 시각으로 본다.
+// 돌려주는 값은 { slot: { key, label }, menus }이고 menus는 trendingMenus와 같은 모양이다.
+// 지금 시간대의 메뉴가 MIN_SLOT_MENUS개보다 적으면 시간대를 나누지 않은 것을 돌려주고 slot은 null이다
+function slotMenus(reviews, places, now) {
+  const slot = slotOf(now);
+  if (slot) {
+    const sameSlot = recentReviews(reviews, now).filter((review) => slotOf(review.createdAt) === slot);
+    const menus = toTrendList(countMenus(sameSlot), places);
+    if (menus.length >= MIN_SLOT_MENUS) {
+      return { slot: { key: slot.key, label: slot.label }, menus: menus };
+    }
+  }
+  return { slot: null, menus: trendingMenus(reviews, places, now) };
 }
 
 // 가게 하나에서 많이 먹은 메뉴. 그 가게의 숨기지 않은 추천을 날짜와 상관없이 모두 세고 5개까지 돌려준다.
@@ -166,7 +226,12 @@ module.exports = {
   TREND_DAYS,
   MAX_TRENDS,
   MAX_PLACE_MENUS,
+  TIME_SLOTS,
+  MIN_SLOT_MENUS,
   placeMenus,
+  koreaHour,
+  slotOf,
+  slotMenus,
   BATCH_SIZE,
   buildMenuPrompt,
   parseMenus,
