@@ -27,6 +27,9 @@ let map = null;
 // GET /api/places 로 받은 가게 목록. 지도와 옆 칸이 같이 쓴다
 let places = [];
 
+// GET /api/places/today 로 받은 오늘의 추천. 없으면 null
+let todayPick = null;
+
 // 지금 지도에 얹은 마커. 필터를 바꿔 다시 찍을 때 먼저 지운다
 let overlays = [];
 
@@ -45,7 +48,7 @@ const knownCategories = [];
 const filterForm = makeFilterForm();
 
 startMap();
-loadPlaces();
+loadToday().then(loadPlaces);
 
 async function startMap() {
   showMapMessage('지도를 불러오는 중입니다.');
@@ -296,6 +299,52 @@ function drawMarkers() {
   }
 }
 
+// 오늘의 추천을 받아 둔다. 못 받아도 목록은 그대로 보여 준다
+async function loadToday() {
+  try {
+    const res = await fetch('/api/places/today');
+    const body = await res.json();
+    todayPick = res.ok ? body.pick : null;
+  } catch (err) {
+    todayPick = null;
+  }
+}
+
+// 오늘의 추천 상자. 누르면 그 가게의 상세로 간다.
+// 가게 이름과 추천 글은 textContent로 넣어서 HTML로 해석되지 않게 한다
+function makeTodayBox(pick) {
+  const box = document.createElement('button');
+  box.type = 'button';
+  box.className = 'today-pick';
+  box.addEventListener('click', () => showPlaceDetail(pick.id));
+
+  const label = document.createElement('span');
+  label.className = 'today-label';
+  label.textContent = '오늘의 추천';
+
+  const name = document.createElement('strong');
+  name.textContent = pick.name;
+
+  box.append(label, name);
+
+  if (pick.reason) {
+    const reason = document.createElement('span');
+    reason.className = 'sub';
+    reason.textContent = pick.reason;
+    box.append(reason);
+  }
+
+  // 요약이 있으면 요약을, 없으면 가장 최근 한 줄 추천을 보여 준다
+  const words = pick.summary || (pick.quote ? '"' + pick.quote + '"' : '');
+  if (words) {
+    const text = document.createElement('span');
+    text.className = 'today-words';
+    text.textContent = words;
+    box.append(text);
+  }
+  return box;
+}
+
 // 옆 칸: 기록이 있는 가게 목록
 function showPlaceList() {
   panelEl.replaceChildren();
@@ -317,7 +366,12 @@ function showPlaceList() {
   order.className = 'sub';
   order.textContent = `걸어서 15분 안 ${places.length}곳 · 또 갈래요 비율이 높은 순`;
 
-  panelEl.append(title, filterForm, order);
+  panelEl.append(title);
+  // 오늘의 추천은 필터를 고르지 않았을 때만 보여 준다. 필터로 찾는 중에는 그 결과가 먼저다
+  if (todayPick && !hasFilter()) {
+    panelEl.append(makeTodayBox(todayPick));
+  }
+  panelEl.append(filterForm, order);
 
   if (places.length === 0) {
     const empty = document.createElement('p');
