@@ -574,7 +574,8 @@ function makeLiveBox(placeId, live) {
   box.className = 'live-box';
 
   const text = document.createElement('p');
-  text.className = 'live-status';
+  // 제보가 없다는 안내는 눈에 띄는 색이 아니라 흐린 색으로 보여 준다. 빨간색이면 오류처럼 보인다
+  text.className = live ? 'live-status' : 'live-status live-empty';
   text.textContent = live ? liveText(live) : '30분 안에 들어온 웨이팅, 자리 제보가 없습니다.';
 
   const buttons = document.createElement('div');
@@ -594,8 +595,10 @@ function makeLiveBox(placeId, live) {
           body: JSON.stringify({ kind: kind, anonId: getOrCreateAnonId() }),
         });
         const data = await res.json();
+        text.classList.remove('live-empty');
         text.textContent = res.ok ? liveText(data.live) + ' 제보 고마워요.' : (data.error || '제보하지 못했습니다.');
       } catch (err) {
+        text.classList.remove('live-empty');
         text.textContent = '서버에 연결하지 못했습니다. 잠시 뒤에 다시 해 주세요.';
         for (const other of buttons.querySelectorAll('button')) {
           other.disabled = false;
