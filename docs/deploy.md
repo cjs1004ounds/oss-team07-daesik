@@ -26,7 +26,7 @@ VPC 10.0.0.0/16
             └─ Docker
                  └─ 컨테이너 oss-app (메모리 512MB)
                       ├─ 127.0.0.1:3000 (서버 안에서만 접근)
-                      └─ 볼륨 oss-data -> /data (가게, 한 줄 추천 JSON)
+                      └─ 볼륨 oss-data -> /data (가게, 한 줄 추천 같은 기록 JSON)
 ```
 
 요청은 nginx가 받아서 컨테이너로 넘깁니다. 컨테이너의 3000번은 밖에서 직접 닿지 않습니다.
@@ -170,6 +170,21 @@ chmod 600 .env
 
 `nano`에서 `KAKAO_REST_API_KEY=` 뒤에 키를 넣고 `Ctrl+O`, `Enter`로 저장한 뒤 `Ctrl+X`로 나옵니다.
 
+넣는 값은 아래와 같습니다. 설명은 `.env.example`에도 있습니다.
+
+| 이름 | 쓰는 곳 | 비워 두면 |
+| --- | --- | --- |
+| `KAKAO_REST_API_KEY` | 가게 검색 (카카오 로컬 API) | 가게 검색이 502 |
+| `KAKAO_JS_KEY` | 첫 화면 지도 (카카오맵) | 지도가 안 뜨고 안내 글자만 나옴 |
+| `GEMINI_API_KEY` | LLM 기능 전부 (칸 채우기, 작성 전 검사, 신고 판단, 검색, 요약 등) | LLM 없이 동작. 나머지 기능은 그대로 |
+| `GEMINI_MODEL` | 쓸 Gemini 모델 | `server/llm.js`의 기본 모델 |
+| `LLM_DAILY_LIMIT` | 서버 전체의 하루 LLM 호출 한도 | `server/llm.js`의 기본값 |
+| `CAMPUS_IP_PREFIXES` | 교내 인증의 학교 와이파이 판정 (R12) | 와이파이 판정 없이 위치로만 인증 |
+
+- 키와 학교 와이파이의 IP 값은 이 파일에만 넣습니다. 저장소, 이슈, 채팅에는 올리지 않습니다.
+- `.env`를 고친 뒤에는 "7. 코드를 바꾼 뒤 다시 올리기"처럼 컨테이너를 지우고 새로 만들어야 합니다. `--env-file`은 컨테이너를 만들 때 한 번만 읽어서 `docker restart`로는 반영되지 않습니다.
+- `CAMPUS_IP_PREFIXES`가 맞게 동작하려면 서버가 nginx 뒤에서 접속한 사람의 IP를 읽어야 합니다. `deploy/nginx/oss.conf`가 `X-Forwarded-For`를 넘기고, 서버는 `server/app.js`의 `trust proxy` 설정으로 그 값을 읽습니다.
+
 ### 이미지 만들고 실행
 
 ```
@@ -226,6 +241,14 @@ sudo docker ps
 sudo docker stats --no-stream
 ```
 
+LLM 키가 들어갔는지는 칸 채우기 API로 봅니다.
+
+```
+curl -s -X POST localhost:3000/api/reviews/draft -H 'Content-Type: application/json' -d '{"text":"jeyuk 7000won"}'
+```
+
+`"source":"llm"`이 나오면 Gemini가 답한 것이고, `"source":"empty"`면 키가 없거나 호출이 실패한 것입니다. 실패한 이유는 `sudo docker logs oss-app`에 남습니다.
+
 ## 7. 코드를 바꾼 뒤 다시 올리기
 
 main에 합쳐도 서버는 자동으로 바뀌지 않습니다. 서버에 접속해서 한 줄씩 실행합니다. 볼륨은 그대로 두기 때문에 기록은 남습니다.
@@ -242,7 +265,55 @@ sudo docker run -d --name oss-app --init --restart unless-stopped -p 127.0.0.1:3
 
 컨테이너를 지우고 새로 만드는 몇 초 동안은 nginx가 502를 돌려줍니다. nginx는 다시 시작하지 않아도 됩니다.
 
-## 8. 잘 안 될 때
+## 8. 기록 백업, 지우기, 시드
+
+기록은 볼륨 `oss-data`(컨테이너 안의 `/data`)에 JSON 파일로 있습니다.
+
+| 파일 | 내용 |
+| --- | --- |
+| `places.json` | 기록이 있는 가게 |
+| `reviews.json` | 한 줄 추천 |
+| `visits.json` | 다녀왔어요 응답 |
+| `verifications.json` | 교내 인증 |
+| `rooms.json` | 같이 정하기 방 |
+| `reports.json` | 신고 |
+| `statuses.json` | 지금 상황 제보 |
+| `priceRanges.json` | LLM에게 받아 둔 종류별 보통 가격 범위 |
+
+### 백업
+
+볼륨 안의 `backup` 폴더에 복사해 둡니다.
+
+```
+sudo docker exec oss-app sh -c 'mkdir -p /data/backup && cp /data/*.json /data/backup/ && ls /data/backup'
+```
+
+서버 밖으로 꺼내 두려면 EC2의 홈 폴더로 복사합니다.
+
+```
+sudo docker cp oss-app:/data ~/data-backup
+```
+
+자동으로 하는 백업은 없습니다. 기록을 지우거나 시드를 넣기 전에 직접 합니다.
+
+### 시험 기록 지우기
+
+시험하면서 남긴 기록을 지울 때 씁니다. 교내 인증(`verifications.json`)과 가격 범위(`priceRanges.json`)는 남깁니다. 지운 뒤에 바로 다시 시작해야 합니다. 서버가 기록을 메모리에 들고 있어서, 다시 시작하지 않으면 다음 저장 때 지운 기록이 파일에 다시 써집니다.
+
+```
+sudo docker exec oss-app sh -c 'cd /data && rm -f places.json reviews.json visits.json reports.json statuses.json rooms.json && ls'
+sudo docker restart oss-app
+```
+
+### 시드 데이터
+
+저장소의 `data/seed`에 있는 파일은 이미지에 같이 들어갑니다. 서버는 켤 때 파일마다 `/data`에 그 파일이 있으면 그것을 읽고, 없을 때만 `data/seed`의 같은 이름 파일을 읽습니다(`server/store.js`).
+
+- 그래서 `/data`에 `places.json`이 이미 있으면 시드를 바꿔서 올려도 반영되지 않습니다.
+- 시드를 새로 넣으려면 새 이미지로 올린 뒤(7번), 위의 "시험 기록 지우기"로 `/data`의 파일을 지우고 다시 시작합니다. 이때 서버에 쌓인 기록은 사라지니 먼저 백업합니다.
+- 시드로 읽은 기록은 누가 처음 기록을 남기는 순간 `/data`의 파일에 같이 써집니다. 그 뒤로는 `/data`의 파일이 기준입니다.
+
+## 9. 잘 안 될 때
 
 | 증상 | 볼 곳 |
 | --- | --- |
@@ -252,6 +323,10 @@ sudo docker run -d --name oss-app --init --restart unless-stopped -p 127.0.0.1:3
 | 가게 검색이 오류 | `.env`의 카카오 키, 카카오 앱의 카카오맵 사용 설정 |
 | 저장이 안 됨 | 실행 명령에 `-e DATA_DIR=/data`와 `-v oss-data:/data`가 있는지 |
 | 지도가 안 나옴 | 카카오 디벨로퍼스의 JavaScript 키에 배포 주소를 등록했는지 |
+| LLM 기능이 안 됨 (칸 채우기가 비어서 옴, 요약이 안 나옴) | `.env`의 `GEMINI_API_KEY`, `sudo docker logs oss-app`의 실패 이유. 하루 한도나 사람별 한도를 넘었을 수도 있음 (`docs/api.md`의 "LLM 호출 제한") |
+| `.env`를 고쳤는데 그대로임 | 컨테이너를 지우고 새로 만들었는지. `docker restart`로는 반영되지 않음 |
+| 학교 와이파이인데 교내 인증이 위치를 물어봄 | `.env`의 `CAMPUS_IP_PREFIXES`, nginx 설정에 `X-Forwarded-For`가 있는지 |
+| 시드를 바꿨는데 안 보임 | `/data`에 같은 이름 파일이 있으면 시드를 읽지 않음. "8. 기록 백업, 지우기, 시드" |
 | Session Manager 연결이 안 됨 | 인스턴스에 `oss-ec2-role`이 붙어 있는지, 퍼블릭 IP가 있는지 |
 
 저장된 데이터는 `sudo docker exec oss-app ls -l /data`로 봅니다.
@@ -268,4 +343,4 @@ sudo docker run -d --name oss-app --init --restart unless-stopped -p 127.0.0.1:3
 ## 아직 안 한 것
 
 - 머지하면 자동으로 올라가게 하는 것. 수업 조건(자동 배포 서비스 금지)에 걸리는지 확인한 뒤 정합니다.
-- 데이터 백업. 지금은 EC2 디스크의 볼륨에만 있습니다.
+- 자동 백업. 지금은 8번처럼 직접 복사하고, 기록은 EC2 디스크의 볼륨에만 있습니다.
