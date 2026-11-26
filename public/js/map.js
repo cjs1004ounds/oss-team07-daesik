@@ -437,6 +437,16 @@ async function showPlaceDetail(placeId) {
     }
   }
 
+  // 이 가게에서 많이 먹은 메뉴. 메뉴가 적힌 추천이 없으면 줄을 만들지 않는다
+  if (Array.isArray(body.topMenus) && body.topMenus.length > 0) {
+    const menus = document.createElement('p');
+    menus.className = 'summary-points top-menus';
+    const name = document.createElement('strong');
+    name.textContent = '많이 먹은 메뉴';
+    menus.append(name, ' ' + body.topMenus.map((menu) => (menu.count > 1 ? menu.name + ' ' + menu.count : menu.name)).join(', '));
+    panelEl.append(menus);
+  }
+
   if (map) {
     map.panTo(new kakao.maps.LatLng(place.lat, place.lng));
   }
