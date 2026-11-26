@@ -12,7 +12,8 @@ const { needsSummary, summaryKey, buildSummaryPrompt, parseSummary } = require('
 const { COMMON_CATEGORIES, MAX_QUESTION_LENGTH, buildAskPrompt, parseAsk, isEmptyFilter } = require('../../shared/askFilter');
 const { ALLOWED_TAGS } = require('../../shared/reviewValidator');
 const { isKind, hasRecentReport, summarizeLive } = require('../../shared/liveStatus');
-const { take, cleanUp } = require('../../shared/usageLimit');
+const { take, cleanUp, koreaDay } = require('../../shared/usageLimit');
+const { pickToday, reasonText } = require('../../shared/todayPick');
 const priceRanges = require('../priceRanges');
 const { findHeldPrices, needsCategoryRange, categoryKey } = require('../../shared/priceCheck');
 const { countRecordsByPerson, titleFor } = require('../../shared/badges');
@@ -321,6 +322,38 @@ function listPlaces(filter) {
     .filter((place) => matchesFilter(place, r3Filter));
   return sortPlaces(places);
 }
+
+// GET /api/places/today
+// 오늘의 추천 (shared/todayPick.js). 걸어서 15분 안의 가게 중 또 갈래요 비율이 높은 앞쪽 후보에서
+// 날짜에 따라 하나를 고른다. 고르는 것은 규칙이고, LLM은 그 가게의 한 줄 요약에만 쓴다.
+// /:id 보다 위에 둬야 today가 가게 id로 읽히지 않는다
+router.get('/today', async (req, res) => {
+  const picked = pickToday(listPlaces(parseFilter({}).value), koreaDay(Date.now()));
+  if (!picked) {
+    res.json({ pick: null });
+    return;
+  }
+
+  const reviews = visibleReviews(picked.id);
+  // 요약은 추천이 2개 이상일 때만 있다. 없거나 LLM이 실패하면 가장 최근 한 줄 추천을 대신 보여 준다
+  const summary = await getPlaceSummary(store.getPlace(picked.id), reviews, req.ip);
+  const latest = [...reviews].sort((a, b) => b.createdAt.localeCompare(a.createdAt))[0];
+
+  res.json({
+    pick: {
+      id: picked.id,
+      name: picked.name,
+      category: picked.category,
+      walkMinutes: picked.walkMinutes,
+      againRatio: picked.againRatio,
+      averagePrice: picked.averagePrice,
+      reviewCount: picked.reviewCount,
+      reason: reasonText(picked),
+      summary: summary,
+      quote: latest ? latest.text : null,
+    },
+  });
+});
 
 // 말로 찾기에서 고를 수 있는 음식 종류. 자주 나오는 것에 지금 기록된 가게의 종류를 더한다
 function askCategories() {

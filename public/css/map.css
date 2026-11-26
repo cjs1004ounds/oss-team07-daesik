@@ -136,6 +136,40 @@
   color: #2a6fdb;
 }
 
+/* 오늘의 추천 */
+.today-pick {
+  display: block;
+  width: 100%;
+  margin: 0 0 12px;
+  padding: 10px 12px;
+  border: 1px solid #cfe0fa;
+  border-radius: 8px;
+  background: #f0f5fd;
+  color: inherit;
+  text-align: left;
+  cursor: pointer;
+}
+
+.today-pick:hover strong {
+  color: #2a6fdb;
+}
+
+.today-pick strong,
+.today-pick span {
+  display: block;
+}
+
+.today-label {
+  font-size: 12px;
+  font-weight: 700;
+  color: #2a6fdb;
+}
+
+.today-words {
+  margin-top: 4px;
+  font-size: 14px;
+}
+
 /* 지금 상황 (R16) */
 .live-box {
   margin: 0 0 10px;
