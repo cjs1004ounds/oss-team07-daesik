@@ -1,4 +1,4 @@
-// 가게 한 줄 요약. 한 줄 추천들을 LLM이 한 문장으로 정리한다.
+// 가게 한 줄 요약. 한 줄 추천들을 LLM이 한 문장으로 정리하고, 좋은 점과 아쉬운 점을 짧은 말로 뽑는다.
 // LLM을 부르는 일은 server/llm.js가 하고, 여기서는 문장 만들기, 응답 검사, 다시 만들지 판단만 한다.
 
 // 추천이 이보다 적으면 요약하지 않는다. 하나뿐이면 그 글을 보면 된다
@@ -7,6 +7,9 @@ const MIN_REVIEWS = 2;
 const MAX_REVIEWS_IN_PROMPT = 20;
 // 요약 최대 길이
 const MAX_SUMMARY_LENGTH = 80;
+// 좋은 점과 아쉬운 점은 각각 이 개수까지, 하나는 이 길이까지
+const MAX_POINTS = 3;
+const MAX_POINT_LENGTH = 20;
 
 // 요약에 넣을 추천. 숨긴 글은 빼고 최근 것부터
 function reviewsForSummary(reviews) {
@@ -51,13 +54,16 @@ function buildSummaryPrompt(placeName, reviews) {
     '- 의견이 갈리면 갈린다고 쓴다.',
     '- 욕설, 개인정보, 특정인 이야기는 넣지 않는다.',
     '- ' + MAX_SUMMARY_LENGTH + '자 이내, "~요"로 끝나는 말투.',
+    '- good: 추천에 적힌 좋은 점을 짧은 말로 ' + MAX_POINTS + '개까지. 예: "양이 많음", "숯불 향"',
+    '- bad: 추천에 적힌 아쉬운 점을 짧은 말로 ' + MAX_POINTS + '개까지. 예: "가격이 오름", "웨이팅". 없으면 빈 목록',
+    '- good과 bad도 추천에 적힌 것만 쓴다. 한 글에 좋은 점과 아쉬운 점이 같이 있으면 나눠서 넣는다.',
     '',
     '가게 이름: ' + String(placeName || ''),
     '<추천>',
     lines.join('\n'),
     '</추천>',
     '',
-    'JSON 하나로만 답해라. 모양: {"summary": "한 문장"}',
+    'JSON 하나로만 답해라. 모양: {"summary": "한 문장", "good": ["좋은 점"], "bad": ["아쉬운 점"]}',
   ].join('\n');
 }
 
@@ -88,10 +94,59 @@ function parseSummary(rawText) {
   return { ok: true, value: summary.slice(0, MAX_SUMMARY_LENGTH) };
 }
 
+// 목록 하나를 검사한다. 글자가 아닌 것, 빈 것, 너무 긴 것, 겹치는 것은 빼고 MAX_POINTS개까지 남긴다
+function cleanPoints(list, skip) {
+  const points = [];
+  const seen = new Set(skip || []);
+  for (const item of Array.isArray(list) ? list : []) {
+    if (typeof item !== 'string') {
+      continue;
+    }
+    const point = item.replace(/\s+/g, ' ').trim();
+    const key = point.replace(/\s+/g, '');
+    if (point === '' || point.length > MAX_POINT_LENGTH || seen.has(key)) {
+      continue;
+    }
+    seen.add(key);
+    points.push(point);
+    if (points.length === MAX_POINTS) {
+      break;
+    }
+  }
+  return points;
+}
+
+// LLM이 돌려준 글자에서 좋은 점과 아쉬운 점을 꺼낸다. 돌려주는 값은 늘 { good: [], bad: [] } 모양이다.
+// 읽을 수 없거나 목록이 없으면 빈 목록이다. 요약 문장(parseSummary)과 따로 둔 이유는
+// 좋은 점과 아쉬운 점은 나중에 더한 것이라, 이것이 없거나 이상해도 요약 문장은 쓰려는 것이다.
+// 양쪽에 같은 말이 있으면 좋은 점에만 남긴다
+function parseSummaryPoints(rawText) {
+  const empty = { good: [], bad: [] };
+  if (typeof rawText !== 'string') {
+    return empty;
+  }
+  const cleaned = rawText.trim().replace(/^```(?:json)?\s*/i, '').replace(/\s*```$/, '');
+  let data;
+  try {
+    data = JSON.parse(cleaned);
+  } catch (err) {
+    return empty;
+  }
+  if (!data || typeof data !== 'object' || Array.isArray(data)) {
+    return empty;
+  }
+  const good = cleanPoints(data.good);
+  const bad = cleanPoints(data.bad, good.map((point) => point.replace(/\s+/g, '')));
+  return { good: good, bad: bad };
+}
+
 module.exports = {
   MIN_REVIEWS,
   MAX_REVIEWS_IN_PROMPT,
   MAX_SUMMARY_LENGTH,
+  MAX_POINTS,
+  MAX_POINT_LENGTH,
+  parseSummaryPoints,
   reviewsForSummary,
   needsSummary,
   summaryKey,

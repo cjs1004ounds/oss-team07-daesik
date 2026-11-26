@@ -263,6 +263,9 @@ function setPlaceSummary(placeId, summary) {
   place.summary = {
     text: summary.text,
     key: summary.key,
+    // 좋은 점과 아쉬운 점. 없으면 빈 목록
+    good: Array.isArray(summary.good) ? summary.good : [],
+    bad: Array.isArray(summary.bad) ? summary.bad : [],
     createdAt: new Date().toISOString(),
   };
   writeList('places.json', places);

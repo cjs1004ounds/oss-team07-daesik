@@ -8,7 +8,7 @@ const { findPlacesByRecords, mergeResults } = require('../../shared/recordSearch
 const { againStats, averagePrice, lastRecordAt } = require('../../shared/recordWeight');
 const { shouldExpand, buildExpandPrompt, parseExpansion } = require('../../shared/searchExpand');
 const { MAX_ASK_PLACES, ruleLevel, buildRankPrompt, parseRank, sortByLevel, rankKey } = require('../../shared/searchRank');
-const { needsSummary, summaryKey, buildSummaryPrompt, parseSummary } = require('../../shared/placeSummary');
+const { needsSummary, summaryKey, buildSummaryPrompt, parseSummary, parseSummaryPoints } = require('../../shared/placeSummary');
 const { COMMON_CATEGORIES, MAX_QUESTION_LENGTH, buildAskPrompt, parseAsk, isEmptyFilter } = require('../../shared/askFilter');
 const { ALLOWED_TAGS } = require('../../shared/reviewValidator');
 const { isKind, hasRecentReport, summarizeLive } = require('../../shared/liveStatus');
@@ -398,7 +398,8 @@ async function getPlaceSummary(place, reviews, clientKey) {
     return null;
   }
   const key = summaryKey(reviews);
-  if (place.summary && place.summary.key === key) {
+  // 좋은 점과 아쉬운 점을 더하기 전에 만든 요약(good이 없음)은 한 번 다시 만든다
+  if (place.summary && place.summary.key === key && Array.isArray(place.summary.good)) {
     return place.summary.text;
   }
 
@@ -414,7 +415,8 @@ async function getPlaceSummary(place, reviews, clientKey) {
           console.error('가게 요약을 쓸 수 없습니다: ' + result.error);
           return null;
         }
-        store.setPlaceSummary(place.id, { text: result.value, key: key });
+        const points = parseSummaryPoints(raw);
+        store.setPlaceSummary(place.id, { text: result.value, key: key, good: points.good, bad: points.bad });
         return result.value;
       } catch (err) {
         console.error('가게 요약 실패: ' + err.message);
@@ -446,6 +448,13 @@ router.get('/:id', async (req, res) => {
     needsCategoryRange(visible) ? priceRanges.ensureRange(categoryKey(place.category), req.ip) : null,
   ]);
 
+  // 요약과 같이 저장해 둔 좋은 점과 아쉬운 점. 요약이 없으면 빈 목록이다
+  const saved = summary ? store.getPlace(place.id).summary : null;
+  const summaryPoints = {
+    good: saved && Array.isArray(saved.good) ? saved.good : [],
+    bad: saved && Array.isArray(saved.bad) ? saved.bad : [],
+  };
+
   const held = heldPricesOf(place, visible);
   const counts = countRecordsByPerson(store.getReviews(), store.getVisits());
   const reviews = visible
@@ -457,6 +466,7 @@ router.get('/:id', async (req, res) => {
     stats: placeStats(place, new Date()),
     live: summarizeLive(store.getStatusesByPlace(place.id), new Date()),
     summary: summary,
+    summaryPoints: summaryPoints,
     reviews,
   });
 });
