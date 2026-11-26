@@ -13,7 +13,7 @@ const DEFAULT_MODEL = 'gemini-3.5-flash-lite';
 const TIMEOUT_MS = 8000;
 
 // 서버 전체에서 하루(한국 시간)에 LLM을 부르는 횟수. .env의 LLM_DAILY_LIMIT로 바꾼다
-const DEFAULT_DAILY_LIMIT = 500;
+const DEFAULT_DAILY_LIMIT = 2000;
 // 같은 사람(접속 IP)이 1시간에 LLM을 부르게 만들 수 있는 횟수
 const PER_CLIENT_LIMIT = 40;
 const HOUR_MS = 60 * 60 * 1000;
