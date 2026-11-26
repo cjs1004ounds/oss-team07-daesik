@@ -129,5 +129,5 @@ test('하루 한도를 넘으면 누구든 부르지 않는다', async () => {
 });
 
 test('LLM_DAILY_LIMIT가 없으면 기본 하루 한도를 쓴다', () => {
-  assert.strictEqual(llm.DEFAULT_DAILY_LIMIT, 500);
+  assert.strictEqual(llm.DEFAULT_DAILY_LIMIT, 2000);
 });
