@@ -159,19 +159,6 @@ function renderTagButtons() {
   }
 }
 
-// 브라우저별 익명 ID를 localStorage에서 가져오거나, 첫 방문이면 무작위로 생성해 저장한다
-function getOrCreateAnonId() {
-  let anonId = localStorage.getItem('anonId');
-  if (!anonId) {
-    // HTTPS 또는 localhost 환경에서는 표준 UUID를 쓰고, 지원되지 않는 환경은 대체 문자열을 만든다
-    anonId = typeof crypto.randomUUID === 'function'
-      ? crypto.randomUUID()
-      : 'anon-' + Date.now() + '-' + Math.random().toString(36).slice(2, 10);
-    localStorage.setItem('anonId', anonId);
-  }
-  return anonId;
-}
-
 // 저장 전 검사. 문제 될 내용 목록을 돌려준다. 서버에 닿지 못하면 빈 목록이다
 async function checkReviewText(text, price) {
   try {
