@@ -36,9 +36,10 @@
       </div>
     </form>
 
-    <!-- 요즘 많이 먹는 메뉴. 누르면 그 메뉴로 검색한다 (GET /api/trends). 기록이 없으면 숨긴다 -->
+    <!-- 요즘 많이 먹는 메뉴. 누르면 그 메뉴로 검색한다 (GET /api/trends). 기록이 없으면 숨긴다.
+         지금 시간대의 기록이 충분하면 제목이 "점심에 많이 먹는 메뉴"처럼 바뀐다 -->
     <section id="trends" class="trends" hidden>
-      <h2>요즘 많이 먹는 메뉴</h2>
+      <h2 id="trend-title">요즘 많이 먹는 메뉴</h2>
       <div id="trend-list" class="trend-list"></div>
     </section>
 

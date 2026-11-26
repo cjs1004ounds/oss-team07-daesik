@@ -10,6 +10,7 @@ const button = document.getElementById('search-button');
 const message = document.getElementById('search-message');
 const results = document.getElementById('search-results');
 const trendsBox = document.getElementById('trends');
+const trendTitle = document.getElementById('trend-title');
 const trendList = document.getElementById('trend-list');
 
 form.addEventListener('submit', (event) => {
@@ -137,7 +138,8 @@ function selectPlace(place) {
   location.href = REVIEW_PAGE;
 }
 
-// 요즘 많이 먹는 메뉴를 버튼으로 보여 준다. 누르면 그 메뉴로 검색한다.
+// 요즘 많이 먹는 메뉴를 순위와 같이 버튼으로 보여 준다. 누르면 그 메뉴로 검색한다.
+// 서버가 지금 시간대(slot)를 주면 그 시간대에 많이 먹는 메뉴라서 제목을 "점심에 많이 먹는 메뉴"처럼 바꾼다.
 // 불러오지 못하거나 기록이 없으면 칸을 숨긴 채로 둔다
 async function loadTrends() {
   try {
@@ -150,18 +152,26 @@ async function loadTrends() {
       return;
     }
 
-    for (const menu of data.menus) {
+    const slotLabel = data.slot && typeof data.slot.label === 'string' ? data.slot.label : '';
+    if (slotLabel !== '') {
+      trendTitle.textContent = slotLabel + '에 많이 먹는 메뉴';
+    }
+
+    data.menus.forEach((menu, index) => {
       const chip = document.createElement('button');
       chip.type = 'button';
       chip.className = 'trend-chip';
-      chip.textContent = menu.name + ' ' + menu.count;
-      chip.title = '최근 ' + data.days + '일 동안 ' + menu.count + '개의 한 줄 추천에 나온 메뉴';
+      const rank = document.createElement('span');
+      rank.className = 'trend-rank';
+      rank.textContent = index + 1 + '위';
+      chip.append(rank, ' ' + menu.name);
+      chip.title = '최근 ' + data.days + '일 동안 ' + (slotLabel !== '' ? slotLabel + '에 쓴 ' : '') + menu.count + '개의 한 줄 추천에 나온 메뉴';
       chip.addEventListener('click', () => {
         input.value = menu.name;
         searchPlaces(menu.name);
       });
       trendList.append(chip);
-    }
+    });
     trendsBox.hidden = false;
   } catch (err) {
     // 못 불러와도 검색은 그대로 쓸 수 있다
