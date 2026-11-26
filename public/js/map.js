@@ -48,7 +48,8 @@ const knownCategories = [];
 const filterForm = makeFilterForm();
 
 startMap();
-loadToday().then(loadPlaces);
+loadPlaces();
+loadToday();
 
 async function startMap() {
   showMapMessage('지도를 불러오는 중입니다.');
@@ -299,7 +300,8 @@ function drawMarkers() {
   }
 }
 
-// 오늘의 추천을 받아 둔다. 못 받아도 목록은 그대로 보여 준다
+// 오늘의 추천을 받아 둔다. 못 받아도 목록은 그대로 보여 준다.
+// 요약을 새로 만드는 날에는 몇 초 걸릴 수 있어서 가게 목록을 기다리게 하지 않고 따로 받는다
 async function loadToday() {
   try {
     const res = await fetch('/api/places/today');
@@ -307,6 +309,10 @@ async function loadToday() {
     todayPick = res.ok ? body.pick : null;
   } catch (err) {
     todayPick = null;
+  }
+  // 목록이 먼저 떠 있으면 상자를 넣어 다시 그린다. 가게 상세를 보고 있을 때는 건드리지 않는다
+  if (todayPick && panelEl.querySelector('.place-list')) {
+    showPlaceList();
   }
 }
 
