@@ -281,9 +281,11 @@ function drawMarkers() {
     const button = document.createElement('button');
     button.type = 'button';
     button.className = 'place-marker';
-    button.textContent = String(place.reviewCount);
+    // 마커의 숫자는 한 줄 추천과 다녀왔어요를 합친 기록 수다. 다녀왔어요만 있는 가게가 0으로 보이지 않게 한다
+    const recordCount = place.reviewCount + (place.visitCount || 0);
+    button.textContent = String(recordCount);
     button.title = place.name;
-    button.setAttribute('aria-label', `${place.name}, 한 줄 추천 ${place.reviewCount}개`);
+    button.setAttribute('aria-label', `${place.name}, 기록 ${recordCount}개`);
     button.addEventListener('click', () => showPlaceDetail(place.id));
 
     const overlay = new kakao.maps.CustomOverlay({
@@ -373,6 +375,9 @@ function placeSummaryText(place) {
   }
   parts.push(place.againRatio === null || place.againRatio === undefined ? '기록 부족' : `또 갈래요 ${place.againRatio}%`);
   parts.push(`추천 ${place.reviewCount}개`);
+  if (place.visitCount > 0) {
+    parts.push(`다녀왔어요 ${place.visitCount}개`);
+  }
   return parts.filter((part) => part !== '').join(' · ');
 }
 
@@ -402,7 +407,8 @@ async function showPlaceDetail(placeId) {
 
   const category = document.createElement('p');
   category.className = 'sub';
-  category.textContent = `${shortCategory(place.category)} · 한 줄 추천 ${reviews.length}개`;
+  const visitCount = body.stats ? body.stats.visitCount || 0 : 0;
+  category.textContent = `${shortCategory(place.category)} · 한 줄 추천 ${reviews.length}개` + (visitCount > 0 ? ` · 다녀왔어요 ${visitCount}개` : '');
 
   panelEl.append(title, category);
   const statsLine = makeStatsLine(body.stats || { againRatio: null, responseCount: 0, averagePrice: null, lastRecordAt: null });

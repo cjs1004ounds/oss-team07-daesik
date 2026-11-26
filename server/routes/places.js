@@ -273,6 +273,8 @@ function placeStats(place, now) {
   const held = heldPricesOf(place, reviews);
   const pricedReviews = reviews.filter((review) => !held.has(review.id));
   return {
+    // 다녀왔어요 응답 전체 수. 교내 인증 여부와 상관없이 센다 (비율에 넣는 수는 responseCount)
+    visitCount: visits.length,
     responseCount: again.responseCount,
     againRatio: again.againRatio,
     averagePrice: averagePrice(pricedReviews, now),

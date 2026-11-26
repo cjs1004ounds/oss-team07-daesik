@@ -96,3 +96,13 @@ test('응답이 3개보다 적으면 비율은 null이고, 가격이 없으면 �
   // 마지막 기록은 한 줄 추천(3일 전)과 응답(1일 전) 중 최근 것
   assert.ok(new Date(body.stats.lastRecordAt) > new Date(daysAgo(2)));
 });
+
+test('다녀왔어요 응답 전체 수(visitCount)가 목록과 상세에 붙는다', async () => {
+  // stat-1에는 응답 6개가 있다. 인증 안 된 것과 1년 지난 것도 visitCount에는 들어간다
+  const list = await getJson('/api/places');
+  const detail = await getJson('/api/places/stat-1');
+
+  assert.strictEqual(list.body.places.find((item) => item.id === 'stat-1').visitCount, 6);
+  assert.strictEqual(detail.body.stats.visitCount, 6);
+  assert.strictEqual(detail.body.stats.responseCount, 4);
+});
