@@ -661,18 +661,6 @@ async function reportReview(reviewId, item, button) {
   }
 }
 
-// 익명 ID. 한 줄 추천 작성 화면(js/review.js)과 같은 이름으로 localStorage에 둔다 (docs/api.md "익명 ID")
-function getOrCreateAnonId() {
-  let anonId = localStorage.getItem('anonId');
-  if (!anonId) {
-    anonId = typeof crypto.randomUUID === 'function'
-      ? crypto.randomUUID()
-      : 'anon-' + Date.now() + '-' + Math.random().toString(36).slice(2, 10);
-    localStorage.setItem('anonId', anonId);
-  }
-  return anonId;
-}
-
 function makeBackButton() {
   const back = document.createElement('button');
   back.type = 'button';

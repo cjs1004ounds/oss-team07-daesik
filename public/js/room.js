@@ -29,18 +29,6 @@ function writeSaved(key, value) {
   }
 }
 
-// 익명 ID. 한 줄 추천 작성 화면(js/review.js)과 같은 이름으로 localStorage에 둔다 (docs/api.md "익명 ID")
-function getOrCreateAnonId() {
-  let anonId = localStorage.getItem('anonId');
-  if (!anonId) {
-    anonId = typeof crypto.randomUUID === 'function'
-      ? crypto.randomUUID()
-      : 'anon-' + Date.now() + '-' + Math.random().toString(36).slice(2, 10);
-    localStorage.setItem('anonId', anonId);
-  }
-  return anonId;
-}
-
 // "음식점 > 일식 > 돈까스,우동" -> "일식 > 돈까스,우동". 맨 앞의 "음식점"은 모든 가게가 같아서 뺀다
 function shortCategory(category) {
   if (typeof category !== 'string') {

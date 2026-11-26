@@ -9,18 +9,6 @@ const verifyButton = document.getElementById('verify-button');
 // 브라우저 위치를 물을 때의 설정. 오차가 150m를 넘으면 서버가 받지 않아서 정확한 위치를 요청한다
 const LOCATION_OPTIONS = { enableHighAccuracy: true, timeout: 15000, maximumAge: 0 };
 
-// 익명 ID. 한 줄 추천 작성 화면(js/review.js)과 같은 이름으로 localStorage에 둔다 (docs/api.md "익명 ID")
-function getOrCreateAnonId() {
-  let anonId = localStorage.getItem('anonId');
-  if (!anonId) {
-    anonId = typeof crypto.randomUUID === 'function'
-      ? crypto.randomUUID()
-      : 'anon-' + Date.now() + '-' + Math.random().toString(36).slice(2, 10);
-    localStorage.setItem('anonId', anonId);
-  }
-  return anonId;
-}
-
 // "2026-12-23T03:00:00.000Z" -> "12월 23일"
 function formatDate(isoText) {
   const date = new Date(isoText);
