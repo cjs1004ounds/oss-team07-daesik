@@ -155,6 +155,11 @@
   margin: 2px 0 0;
 }
 
+/* 제보가 없을 때의 안내 */
+.live-status.live-empty {
+  color: #888;
+}
+
 .live-buttons {
   display: flex;
   gap: 6px;
