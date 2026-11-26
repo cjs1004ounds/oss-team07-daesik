@@ -7,6 +7,7 @@ const searchCache = require('../../shared/searchCache');
 const { findPlacesByRecords, mergeResults } = require('../../shared/recordSearch');
 const { againStats, averagePrice, lastRecordAt } = require('../../shared/recordWeight');
 const { shouldExpand, buildExpandPrompt, parseExpansion } = require('../../shared/searchExpand');
+const { MAX_ASK_PLACES, ruleLevel, buildRankPrompt, parseRank, sortByLevel, rankKey } = require('../../shared/searchRank');
 const { needsSummary, summaryKey, buildSummaryPrompt, parseSummary } = require('../../shared/placeSummary');
 const { COMMON_CATEGORIES, MAX_QUESTION_LENGTH, buildAskPrompt, parseAsk, isEmptyFilter } = require('../../shared/askFilter');
 const { ALLOWED_TAGS } = require('../../shared/reviewValidator');
@@ -76,6 +77,80 @@ async function getExpandedKeywords(query, clientKey) {
   return keywords;
 }
 
+// LLM이 정해 준 가게별 자리를 저장해 두는 곳. 같은 검색어와 같은 가게 묶음이면 다시 묻지 않는다
+const rankCache = new Map();
+const RANK_CACHE_MS = 24 * 60 * 60 * 1000;
+const RANK_CACHE_MAX = 500;
+const RANK_TIMEOUT_MS = 3000;
+
+// 규칙으로 자리를 못 정한 가게들을 LLM에게 물어본다. 돌려주는 값은 가게 순서대로의 자리 배열이고,
+// 키가 없거나 실패하면 모두 null이다. 그 결과도 하루 동안 저장한다 (검색할 때마다 다시 부르지 않게)
+async function askLevels(query, places, clientKey) {
+  const unknown = new Array(places.length).fill(null);
+  const key = rankKey(query, places);
+  const saved = rankCache.get(key);
+  if (saved && Date.now() - saved.savedAt < RANK_CACHE_MS) {
+    // 저장한 것은 가게 id로 찾는다. 가게 순서가 달라졌을 수 있다
+    return places.map((place) => saved.levels[place.id] || null);
+  }
+
+  let levels = unknown;
+  try {
+    const raw = await llm.generateJson(buildRankPrompt(query, places), { timeoutMs: RANK_TIMEOUT_MS, clientKey: clientKey });
+    const result = parseRank(raw, places.length);
+    if (result.ok) {
+      levels = result.value;
+    } else {
+      console.error('검색 결과 자리 응답을 쓸 수 없습니다: ' + result.error);
+    }
+  } catch (err) {
+    console.error('검색 결과 자리 정하기 실패: ' + err.message);
+    // 사람별 한도에 걸린 것은 그 사람 사정이라 저장하지 않는다
+    if (err.code === 'LLM_LIMIT') {
+      return unknown;
+    }
+  }
+
+  // 오래 켜 둔 서버에서 끝없이 쌓이지 않게, 많아지면 비우고 다시 모은다
+  if (rankCache.size >= RANK_CACHE_MAX) {
+    rankCache.clear();
+  }
+  const byId = {};
+  places.forEach((place, index) => {
+    byId[place.id] = levels[index];
+  });
+  rankCache.set(key, { levels: byId, savedAt: Date.now() });
+  return levels;
+}
+
+// 검색 결과에 자리(match)를 붙이고 대표 메뉴 가게가 위로 오게 순서를 정한다.
+// 이름이나 분류에 검색어가 있는 가게는 규칙으로 정하고, 나머지는 LLM에게 물어본다.
+// LLM을 못 써도 규칙으로 정한 순서는 그대로 쓴다
+async function rankSearchResults(query, results, clientKey) {
+  // 규칙으로 먼저 정해서 순서를 잡고 자른다. LLM에게는 잘라 낸 뒤 남은 가게만 물어본다
+  const byRule = sortByLevel(
+    results.map((place) => {
+      const level = ruleLevel(place, query);
+      return level ? { ...place, match: level } : place;
+    })
+  ).slice(0, MAX_SEARCH_RESULTS);
+
+  // 가게가 하나면 순서를 정할 것이 없다. 기록으로 찾은 가게는 어차피 맨 위라 묻지 않는다
+  const toAsk = byRule.filter((place) => !place.match && !place.fromRecords).slice(0, MAX_ASK_PLACES);
+  if (byRule.length < 2 || toAsk.length === 0) {
+    return byRule;
+  }
+
+  const levels = await askLevels(query, toAsk, clientKey);
+  const levelById = new Map();
+  toAsk.forEach((place, index) => {
+    if (levels[index]) {
+      levelById.set(place.id, levels[index]);
+    }
+  });
+  return sortByLevel(byRule.map((place) => (levelById.has(place.id) ? { ...place, match: levelById.get(place.id) } : place)));
+}
+
 // 앞의 목록에 없는 가게만 뒤에 붙인다. via가 있으면 어떤 검색어로 찾았는지 붙인다
 function appendNew(list, places, via) {
   const ids = new Set(list.map((place) => place.id));
@@ -91,7 +166,8 @@ function appendNew(list, places, via) {
 // GET /api/places/search?q=검색어
 // 카카오 로컬 API로 음식점과 카페를 검색한다. 같은 검색어는 10분 동안 저장해 둔 결과를 쓴다 (R9).
 // 우리 기록에 검색어가 적힌 가게는 카카오 결과 앞에 붙인다 (예: "제육"이 적힌 한 줄 추천이 있는 가게).
-// 결과가 적으면 LLM이 넓혀 준 검색어(예: 제육 -> 제육볶음)로 한 번 더 찾아 뒤에 붙인다
+// 결과가 적으면 LLM이 넓혀 준 검색어(예: 제육 -> 제육볶음)로 한 번 더 찾아 뒤에 붙인다.
+// 마지막에 검색어의 음식이 대표 메뉴인 가게가 위로 오게 순서를 정한다 (shared/searchRank.js)
 router.get('/search', async (req, res) => {
   const query = searchCache.normalizeQuery(req.query.q);
   if (query === '') {
@@ -144,7 +220,7 @@ router.get('/search', async (req, res) => {
     }
   }
 
-  res.json({ places: results.slice(0, MAX_SEARCH_RESULTS) });
+  res.json({ places: await rankSearchResults(query, results, req.ip) });
 });
 
 // 화면에 내보낼 가게 값. 저장된 가게에 다른 값이 더 붙어 있어도 이것만 내보낸다

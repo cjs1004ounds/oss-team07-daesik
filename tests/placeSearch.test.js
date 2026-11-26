@@ -197,6 +197,15 @@ function kakaoByQuery(table) {
   return test.mock.method(kakao, 'searchPlaces', async (query) => table[query] || []);
 }
 
+// 검색은 LLM을 두 가지 일로 부른다. 검색어 넓히기와 결과 순서 정하기(<가게> 블록이 있다)를 나눠서 센다
+function expandCalls(fakeLlm) {
+  return fakeLlm.mock.calls.filter((call) => !call.arguments[0].includes('<가게>')).length;
+}
+
+function rankCalls(fakeLlm) {
+  return fakeLlm.mock.calls.filter((call) => call.arguments[0].includes('<가게>')).length;
+}
+
 test('결과가 적으면 LLM이 넓힌 검색어로 더 찾아 뒤에 붙이고 via를 붙인다', async () => {
   kakaoByQuery({
     '넓히기 제육': [place('k1', '본도시락')],
@@ -212,7 +221,7 @@ test('결과가 적으면 LLM이 넓힌 검색어로 더 찾아 뒤에 붙이고
     ['윤스쿡', '넓히기 제육볶음'],
     ['한솥도시락', '넓히기 제육덮밥'],
   ]);
-  assert.strictEqual(fakeLlm.mock.callCount(), 1);
+  assert.strictEqual(expandCalls(fakeLlm), 1);
 });
 
 test('같은 검색어는 LLM을 다시 부르지 않는다', async () => {
@@ -233,7 +242,7 @@ test('결과가 10곳 이상이면 LLM을 부르지 않는다', async () => {
 
   const body = await (await search('많은 결과')).json();
 
-  assert.strictEqual(fakeLlm.mock.callCount(), 0);
+  assert.strictEqual(expandCalls(fakeLlm), 0);
   assert.strictEqual(body.places.length, 10);
 });
 
@@ -313,4 +322,111 @@ test('사람별 LLM 한도에 걸린 검색어는 저장하지 않아서 다음�
 
   assert.deepStrictEqual(first.places, []);
   assert.deepStrictEqual(second.places.map((p) => p.name), ['국밥집']);
+});
+
+// 검색 결과 순서 (대표 메뉴 가게 먼저)
+
+function shop(id, name, category) {
+  return { id: id, name: name, lat: 37.62, lng: 127.06, category: category, address: '서울 노원구' };
+}
+
+// 가게가 10곳이 넘어야 검색어 넓히기를 건너뛴다. 순서만 보려고 채우는 가게들
+function fillers(prefix, count) {
+  return Array.from({ length: count }, (_, i) => shop(prefix + i, prefix + '집' + i, '음식점 > 한식'));
+}
+
+test('이름이나 분류에 검색어가 있는 가게가 LLM 없이도 위로 온다', async () => {
+  kakaoByQuery({
+    순서돈까스: [
+      shop('r1', '김가네', '음식점 > 분식'),
+      shop('r2', '윤스쿡', '음식점 > 일식 > 순서돈까스,우동'),
+      shop('r3', '두찜', '음식점 > 한식 > 닭요리'),
+      shop('r4', '순서돈까스 본점', '음식점 > 일식'),
+      ...fillers('ra', 8),
+    ],
+  });
+  test.mock.method(llm, 'generateJson', async () => {
+    throw new Error('GEMINI_API_KEY가 없습니다.');
+  });
+
+  const body = await (await search('순서돈까스')).json();
+
+  assert.deepStrictEqual(body.places.slice(0, 4).map((p) => [p.name, p.match]), [
+    ['윤스쿡', 'main'],
+    ['순서돈까스 본점', 'main'],
+    ['김가네', undefined],
+    ['두찜', undefined],
+  ]);
+  assert.strictEqual(body.places.length, 12);
+});
+
+test('규칙으로 못 정한 가게는 LLM이 정한 자리대로 대표, 곁들임, 팔지 않음 순서가 된다', async () => {
+  kakaoByQuery({
+    자리제육: [
+      shop('s1', '이디야커피', '음식점 > 카페'),
+      shop('s2', '김밥집', '음식점 > 분식'),
+      shop('s3', '백반집', '음식점 > 한식'),
+      shop('s4', '모르는집', '음식점'),
+      ...fillers('sb', 8),
+    ],
+  });
+  const fakeLlm = test.mock.method(llm, 'generateJson', async (prompt) => {
+    assert.ok(prompt.includes('1. 이디야커피 (음식점 > 카페)'));
+    return '{"main":[3],"side":[2],"none":[1]}';
+  });
+
+  const body = await (await search('자리제육')).json();
+
+  assert.deepStrictEqual(body.places.slice(0, 2).map((p) => [p.name, p.match]), [
+    ['백반집', 'main'],
+    ['김밥집', 'side'],
+  ]);
+  assert.deepStrictEqual(body.places.slice(2, 4).map((p) => p.name), ['모르는집', 'sb집0']);
+  assert.deepStrictEqual([body.places[11].name, body.places[11].match], ['이디야커피', 'none']);
+  assert.strictEqual(rankCalls(fakeLlm), 1);
+});
+
+test('같은 검색어와 같은 가게 묶음이면 순서를 LLM에게 다시 묻지 않는다', async () => {
+  kakaoByQuery({ 다시순서: [shop('c1', '가집', '음식점'), shop('c2', '나집', '음식점'), ...fillers('cc', 9)] });
+  const fakeLlm = test.mock.method(llm, 'generateJson', async () => '{"main":[2]}');
+
+  await search('다시순서');
+  const body = await (await search('다시순서')).json();
+
+  assert.strictEqual(rankCalls(fakeLlm), 1);
+  assert.strictEqual(body.places[0].name, '나집');
+});
+
+test('순서를 묻는 LLM이 이상한 답을 주면 원래 순서 그대로다', async () => {
+  kakaoByQuery({ 이상순서: [shop('o1', '가집', '음식점'), shop('o2', '나집', '음식점'), ...fillers('oc', 9)] });
+  test.mock.method(llm, 'generateJson', async () => '2번이 대표 메뉴입니다');
+
+  const body = await (await search('이상순서')).json();
+
+  assert.deepStrictEqual(body.places.slice(0, 2).map((p) => [p.name, p.match]), [
+    ['가집', undefined],
+    ['나집', undefined],
+  ]);
+});
+
+test('기록에 검색어가 적힌 가게는 대표 메뉴 가게보다도 위다', async () => {
+  store.addPlace({ id: 'rk1', name: '기록집', lat: 37.62, lng: 127.06, category: '음식점 > 한식' });
+  store.addReview({ placeId: 'rk1', text: '기록순서 메뉴가 맛있어요', price: 8000, tags: [], anonId: 'rank-test' });
+  kakaoByQuery({ 기록순서: [shop('rk2', '기록순서 전문점', '음식점'), shop('rk1', '기록집', '음식점 > 한식'), ...fillers('rd', 9)] });
+  const fakeLlm = test.mock.method(llm, 'generateJson', async () => '{"none":[1]}');
+
+  const body = await (await search('기록순서')).json();
+
+  assert.deepStrictEqual(body.places.slice(0, 2).map((p) => p.name), ['기록집', '기록순서 전문점']);
+  // 기록으로 찾은 가게와 규칙으로 정한 가게는 LLM에게 묻지 않는다
+  assert.ok(!fakeLlm.mock.calls[0].arguments[0].includes('기록집'));
+});
+
+test('가게가 한 곳이면 순서를 LLM에게 묻지 않는다', async () => {
+  kakaoByQuery({ 한곳순서: [shop('h1', '혼자집', '음식점')] });
+  const fakeLlm = test.mock.method(llm, 'generateJson', async () => '{"keywords":[]}');
+
+  await search('한곳순서');
+
+  assert.strictEqual(rankCalls(fakeLlm), 0);
 });
