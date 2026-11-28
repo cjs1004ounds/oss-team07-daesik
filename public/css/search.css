@@ -184,6 +184,11 @@
   font-size: 13px;
 }
 
+/* 버튼 앞의 순위 */
+.trend-rank {
+  font-weight: bold;
+}
+
 .trend-chip:hover {
   background: #e1ebfb;
   color: #1f5cbd;

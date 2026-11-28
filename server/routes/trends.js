@@ -2,7 +2,7 @@ const express = require('express');
 
 const llm = require('../llm');
 const store = require('../store');
-const { TREND_DAYS, buildMenuPrompt, parseMenus, reviewsToExtract, trendingMenus } = require('../../shared/menuTrends');
+const { TREND_DAYS, buildMenuPrompt, parseMenus, reviewsToExtract, slotMenus } = require('../../shared/menuTrends');
 
 const router = express.Router();
 
@@ -38,6 +38,7 @@ async function extractPendingMenus(clientKey) {
 
 // GET /api/trends
 // 요즘 많이 먹는 메뉴. 최근 14일 동안 메뉴마다 몇 개의 추천에 나왔는지 센다.
+// 지금 시간대(점심, 저녁 같은)에 쓴 추천이 충분하면 그것만 세고 slot에 시간대를 넣는다. 적으면 slot은 null이다.
 // 메뉴 이름은 LLM이 한 줄 추천에서 뽑아 두고, 세는 것은 규칙(shared/menuTrends.js)이 한다
 router.get('/', async (req, res) => {
   if (!extracting) {
@@ -47,7 +48,8 @@ router.get('/', async (req, res) => {
   }
   await extracting;
 
-  res.json({ days: TREND_DAYS, menus: trendingMenus(store.getReviews(), store.getPlaces(), Date.now()) });
+  const result = slotMenus(store.getReviews(), store.getPlaces(), Date.now());
+  res.json({ days: TREND_DAYS, slot: result.slot, menus: result.menus });
 });
 
 module.exports = router;

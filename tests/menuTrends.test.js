@@ -13,6 +13,11 @@ const {
   recentReviews,
   reviewsToExtract,
   trendingMenus,
+  TIME_SLOTS,
+  MIN_SLOT_MENUS,
+  koreaHour,
+  slotOf,
+  slotMenus,
 } = require('../shared/menuTrends');
 
 const NOW = Date.parse('2026-11-25T03:00:00.000Z');
@@ -98,6 +103,104 @@ test(`${MAX_TRENDS}개까지만 돌려주고, 기록이 없으면 빈 목록이�
   assert.deepStrictEqual(trendingMenus(undefined, undefined, NOW), []);
 });
 
+// 시간대
+
+// 한국 시간으로 며칠 전 몇 시에 쓴 추천. NOW는 한국 시간 낮 12시다
+function reviewAt(id, days, hour, extra = {}) {
+  const createdAt = new Date(NOW - days * DAY_MS + (hour - 12) * 60 * 60 * 1000).toISOString();
+  return { id: id, placeId: 'p1', text: '글 ' + id, createdAt: createdAt, ...extra };
+}
+
+// 한국 시간으로 오늘 몇 시인지를 ms로
+function todayAt(hour) {
+  return NOW + (hour - 12) * 60 * 60 * 1000;
+}
+
+test('한국 시간으로 몇 시인지 알아낸다', () => {
+  assert.strictEqual(koreaHour('2026-11-25T03:00:00.000Z'), 12);
+  assert.strictEqual(koreaHour('2026-11-25T15:30:00.000Z'), 0);
+  assert.strictEqual(koreaHour(Date.parse('2026-11-25T14:59:59.000Z')), 23);
+  assert.strictEqual(koreaHour('시각 아님'), -1);
+  assert.strictEqual(koreaHour(undefined), -1);
+});
+
+test('하루의 모든 시각이 시간대 하나에 들어간다', () => {
+  const expected = { 0: '밤', 5: '밤', 6: '아침', 10: '아침', 11: '점심', 13: '점심', 14: '점심', 15: '오후', 16: '오후', 17: '저녁', 18: '저녁', 20: '저녁', 21: '밤', 23: '밤' };
+  for (const [hour, label] of Object.entries(expected)) {
+    assert.strictEqual(slotOf(todayAt(Number(hour))).label, label, hour + '시');
+  }
+  for (let hour = 0; hour < 24; hour += 1) {
+    assert.ok(TIME_SLOTS.includes(slotOf(todayAt(hour))), hour + '시');
+  }
+  assert.strictEqual(slotOf('시각 아님'), null);
+});
+
+test('같은 기록이어도 점심과 저녁에 다른 순위가 나온다', () => {
+  const reviews = [
+    reviewAt('l1', 1, 12, { menu: '돈까스' }),
+    reviewAt('l2', 2, 13, { menu: '돈까스' }),
+    reviewAt('l3', 3, 11, { menu: '제육볶음' }),
+    reviewAt('l4', 4, 14, { menu: '김치찌개' }),
+    reviewAt('d1', 1, 18, { menu: '치킨' }),
+    reviewAt('d2', 2, 19, { menu: '치킨' }),
+    reviewAt('d3', 3, 17, { menu: '피자' }),
+    reviewAt('d4', 4, 20, { menu: '제육볶음' }),
+  ];
+
+  const lunch = slotMenus(reviews, [], todayAt(13));
+  assert.deepStrictEqual(lunch.slot, { key: 'lunch', label: '점심' });
+  assert.deepStrictEqual(lunch.menus.map((m) => [m.name, m.count]), [['돈까스', 2], ['제육볶음', 1], ['김치찌개', 1]]);
+
+  const dinner = slotMenus(reviews, [], todayAt(18));
+  assert.deepStrictEqual(dinner.slot, { key: 'dinner', label: '저녁' });
+  assert.deepStrictEqual(dinner.menus.map((m) => [m.name, m.count]), [['치킨', 2], ['피자', 1], ['제육볶음', 1]]);
+});
+
+test(`지금 시간대의 메뉴가 ${MIN_SLOT_MENUS}개보다 적으면 시간대를 나누지 않은 것을 돌려준다`, () => {
+  const reviews = [
+    reviewAt('l1', 1, 12, { menu: '돈까스' }),
+    reviewAt('l2', 2, 13, { menu: '제육볶음' }),
+    reviewAt('l3', 3, 12, { menu: '김치찌개' }),
+    reviewAt('d1', 1, 18, { menu: '치킨' }),
+    reviewAt('d2', 2, 19, { menu: '피자' }),
+  ];
+  const now = todayAt(18);
+
+  const dinner = slotMenus(reviews, [], now);
+  assert.strictEqual(dinner.slot, null);
+  assert.deepStrictEqual(dinner.menus, trendingMenus(reviews, [], now));
+  assert.strictEqual(dinner.menus.length, 5);
+
+  assert.deepStrictEqual(slotMenus([], [], now), { slot: null, menus: [] });
+  assert.deepStrictEqual(slotMenus(undefined, undefined, now), { slot: null, menus: [] });
+});
+
+test('자정을 넘는 밤 시간대는 밤 9시와 새벽 2시의 기록을 같이 센다', () => {
+  const reviews = [
+    reviewAt('n1', 1, 22, { menu: '치킨' }),
+    reviewAt('n2', 2, 2, { menu: '라면' }),
+    reviewAt('n3', 3, 23, { menu: '떡볶이' }),
+    reviewAt('l1', 1, 12, { menu: '돈까스' }),
+  ];
+  const night = slotMenus(reviews, [], todayAt(21) + 30 * 60 * 1000);
+  assert.strictEqual(night.slot.key, 'night');
+  assert.deepStrictEqual(night.menus.map((m) => m.name).sort(), ['떡볶이', '라면', '치킨']);
+});
+
+test('시간대로 셀 때도 숨긴 추천과 14일이 지난 추천은 세지 않고, 가게 이름을 붙인다', () => {
+  const places = [{ id: 'p1', name: '광운식당' }];
+  const reviews = [
+    reviewAt('a', 1, 12, { menu: '돈까스' }),
+    reviewAt('b', 2, 12, { menu: '제육볶음' }),
+    reviewAt('c', 3, 12, { menu: '김치찌개' }),
+    reviewAt('d', 1, 12, { menu: '숨긴메뉴', hidden: true }),
+    reviewAt('e', TREND_DAYS + 1, 12, { menu: '오래된메뉴' }),
+  ];
+  const lunch = slotMenus(reviews, places, todayAt(13));
+  assert.deepStrictEqual(lunch.menus.map((m) => m.name), ['돈까스', '제육볶음', '김치찌개']);
+  assert.deepStrictEqual(lunch.menus[0].places, [{ id: 'p1', name: '광운식당' }]);
+});
+
 // API
 
 const app = require('../server/app');
@@ -144,6 +247,8 @@ test('LLM으로 새 추천의 메뉴를 뽑아 세고, 다음에는 다시 묻�
   const second = await getTrends();
 
   assert.strictEqual(first.days, 14);
+  // 메뉴가 2개뿐이라 시간대를 나누지 않는다
+  assert.strictEqual(first.slot, null);
   assert.deepStrictEqual(first.menus.map((m) => [m.name, m.count]), [['제육볶음', 2], ['돈까스', 1]]);
   assert.deepStrictEqual(first.menus[0].places, [{ id: 'yoon', name: '윤스쿡' }]);
   assert.deepStrictEqual(second.menus, first.menus);
@@ -164,6 +269,16 @@ test('LLM이 실패하면 이미 뽑아 둔 것으로만 세고, 다음에 다�
 
   assert.deepStrictEqual(failed.menus.map((m) => m.name), ['제육볶음', '돈까스']);
   assert.ok(later.menus.some((m) => m.name === '라멘'));
+});
+
+test('지금 시간대에 쓴 메뉴가 충분하면 slot에 지금 시간대가 오고 그 메뉴만 센다', async () => {
+  // 앞의 테스트에서 방금 쓴 추천으로 제육볶음, 돈까스, 라멘이 있다
+  test.mock.method(llm, 'generateJson', async () => '{"menus":{}}');
+  const now = slotOf(Date.now());
+  const body = await getTrends();
+
+  assert.deepStrictEqual(body.slot, { key: now.key, label: now.label });
+  assert.deepStrictEqual(body.menus.map((m) => m.name).sort(), ['돈까스', '라멘', '제육볶음']);
 });
 
 test('새 추천이 없으면 LLM을 부르지 않는다', async () => {
