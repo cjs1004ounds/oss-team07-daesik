@@ -19,6 +19,7 @@ const { findHeldPrices, needsCategoryRange, categoryKey } = require('../../share
 const { countRecordsByPerson, titleFor } = require('../../shared/badges');
 const { walkMinutes, isWithinWalk, placeTags, parseFilter, matchesFilter, shortCategory } = require('../../shared/placeFilter');
 const { sortPlaces } = require('../../shared/placeSort');
+const { placeMenus } = require('../../shared/menuTrends');
 
 const router = express.Router();
 
@@ -502,6 +503,8 @@ router.get('/:id', async (req, res) => {
     live: summarizeLive(store.getStatusesByPlace(place.id), new Date()),
     summary: summary,
     summaryPoints: summaryPoints,
+    // 이 가게에서 많이 먹은 메뉴. 먹은 메뉴 칸과 LLM이 글에서 뽑아 둔 메뉴를 센 것이다
+    topMenus: placeMenus(visible),
     reviews,
   });
 });

@@ -481,6 +481,7 @@ GET /api/places?maxPrice=8000&category=한식&tags=혼밥,가성비
   },
   "summary": "양이 많고 혼밥하기 좋다는 기록이 많아요",
   "summaryPoints": { "good": ["양이 많음", "혼밥"], "bad": ["웨이팅"] },
+  "topMenus": [{ "name": "제육볶음", "count": 3 }, { "name": "돈까스", "count": 1 }],
   "stats": {
     "responseCount": 4,
     "againRatio": 67,
@@ -515,6 +516,12 @@ GET /api/places?maxPrice=8000&category=한식&tags=혼밥,가성비
 - 각각 3개까지, 하나는 20자까지입니다. 추천에 적힌 것만 뽑게 하고, 양쪽에 같은 말이 있으면 좋은 점에만 남깁니다.
 - 요약과 같은 LLM 호출에서 받아서 호출 수는 늘지 않습니다. 요약과 같이 저장합니다.
 - 요약이 없거나 LLM이 목록을 주지 않으면 둘 다 빈 배열입니다. 이때도 요약 문장은 그대로 씁니다.
+
+`topMenus`는 이 가게에서 많이 먹은 메뉴입니다(`shared/menuTrends.js`의 `placeMenus`).
+
+- 이 가게의 숨기지 않은 추천에서 먹은 메뉴 칸(`menu`)과 LLM이 글에서 뽑아 둔 메뉴(`menus`)를 셉니다. 날짜와 상관없이 모두 세고, 한 추천에서 같은 메뉴는 한 번만 셉니다.
+- 많은 순, 같으면 최근에 나온 순으로 5개까지입니다. 메뉴가 적힌 추천이 없으면 빈 배열입니다.
+- 세는 것은 규칙이고 여기서 LLM을 부르지 않습니다. LLM이 메뉴를 뽑는 것은 `GET /api/trends`가 합니다.
 
 ## POST /api/verify
 

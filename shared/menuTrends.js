@@ -7,6 +7,8 @@ const MAX_TRENDS = 8;
 // 한 번에 LLM에게 보내는 추천 수
 const BATCH_SIZE = 20;
 const MAX_MENUS_PER_REVIEW = 3;
+// 가게 상세에 보여 주는 그 가게의 메뉴 수
+const MAX_PLACE_MENUS = 5;
 const MAX_MENU_LENGTH = 15;
 
 const DAY_MS = 24 * 60 * 60 * 1000;
@@ -110,9 +112,31 @@ function reviewsToExtract(reviews, now) {
 // 추천의 menus(LLM이 뽑은 것)와 menu(사용자가 적은 먹은 메뉴)를 같이 본다
 function trendingMenus(reviews, places, now) {
   const placeNames = new Map((Array.isArray(places) ? places : []).map((place) => [place.id, place.name]));
+
+  return countMenus(recentReviews(reviews, now))
+    .slice(0, MAX_TRENDS)
+    .map((entry) => ({
+      name: entry.name,
+      count: entry.count,
+      places: entry.placeIds.filter((id) => placeNames.has(id)).map((id) => ({ id: id, name: placeNames.get(id) })),
+    }));
+}
+
+// 가게 하나에서 많이 먹은 메뉴. 그 가게의 숨기지 않은 추천을 날짜와 상관없이 모두 세고 5개까지 돌려준다.
+// reviews는 그 가게의 추천만 넘긴다
+function placeMenus(reviews) {
+  const visible = (Array.isArray(reviews) ? reviews : []).filter((review) => review && !review.hidden);
+  return countMenus(visible)
+    .slice(0, MAX_PLACE_MENUS)
+    .map((entry) => ({ name: entry.name, count: entry.count }));
+}
+
+// 받은 추천들에서 메뉴마다 몇 개의 추천에 나왔는지 센다. 많은 순, 같으면 최근에 나온 순으로 돌려준다.
+// 추천의 menus(LLM이 뽑은 것)와 menu(사용자가 적은 먹은 메뉴)를 같이 보고, 한 추천에서 같은 메뉴는 한 번만 센다
+function countMenus(reviews) {
   const counts = new Map();
 
-  for (const review of recentReviews(reviews, now)) {
+  for (const review of reviews) {
     const names = [...(Array.isArray(review.menus) ? review.menus : []), review.menu];
     const seenInReview = new Set();
     for (const name of names) {
@@ -135,19 +159,14 @@ function trendingMenus(reviews, places, now) {
     }
   }
 
-  return [...counts.values()]
-    .sort((a, b) => b.count - a.count || (a.latest < b.latest ? 1 : a.latest > b.latest ? -1 : 0))
-    .slice(0, MAX_TRENDS)
-    .map((entry) => ({
-      name: entry.name,
-      count: entry.count,
-      places: entry.placeIds.filter((id) => placeNames.has(id)).map((id) => ({ id: id, name: placeNames.get(id) })),
-    }));
+  return [...counts.values()].sort((a, b) => b.count - a.count || (a.latest < b.latest ? 1 : a.latest > b.latest ? -1 : 0));
 }
 
 module.exports = {
   TREND_DAYS,
   MAX_TRENDS,
+  MAX_PLACE_MENUS,
+  placeMenus,
   BATCH_SIZE,
   buildMenuPrompt,
   parseMenus,
