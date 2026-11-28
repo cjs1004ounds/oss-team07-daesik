@@ -180,3 +180,89 @@ test('요약을 만드는 중에 같은 가게 상세가 또 열려도 LLM은 �
   assert.strictEqual(a.summary, '동시에 열어도 한 번');
   assert.strictEqual(b.summary, '동시에 열어도 한 번');
 });
+
+// 좋은 점과 아쉬운 점
+
+const { MAX_POINTS, MAX_POINT_LENGTH, parseSummaryPoints } = require('../shared/placeSummary');
+
+test('문장에 좋은 점과 아쉬운 점을 나눠 달라는 규칙과 모양이 들어간다', () => {
+  const prompt = buildSummaryPrompt('화로상회', [review('a', '비싸졌지만 고기는 괜찮음', 0), review('b', '숯불이라 좋음', 1)]);
+  assert.ok(prompt.includes('- good: 추천에 적힌 좋은 점'));
+  assert.ok(prompt.includes('- bad: 추천에 적힌 아쉬운 점'));
+  assert.ok(prompt.includes('"good": ["좋은 점"], "bad": ["아쉬운 점"]'));
+});
+
+test('JSON에서 좋은 점과 아쉬운 점을 꺼낸다', () => {
+  const raw = '{"summary":"고기는 괜찮은데 비싸졌다는 말이 있어요","good":["고기 질", " 숯불  향 "],"bad":["가격이 오름"]}';
+  assert.deepStrictEqual(parseSummaryPoints(raw), { good: ['고기 질', '숯불 향'], bad: ['가격이 오름'] });
+});
+
+test(`좋은 점과 아쉬운 점은 각각 ${MAX_POINTS}개까지만 받는다`, () => {
+  const raw = JSON.stringify({ summary: '요약', good: ['가', '나', '다', '라'], bad: ['마', '바', '사', '아'] });
+  const points = parseSummaryPoints(raw);
+  assert.strictEqual(points.good.length, MAX_POINTS);
+  assert.strictEqual(points.bad.length, MAX_POINTS);
+});
+
+test('글자가 아닌 것, 빈 것, 너무 긴 것, 겹치는 것은 뺀다', () => {
+  const raw = JSON.stringify({ summary: '요약', good: [1, '', '양이 많음', '양이  많음', '가'.repeat(MAX_POINT_LENGTH + 1)], bad: [null, '웨이팅'] });
+  assert.deepStrictEqual(parseSummaryPoints(raw), { good: ['양이 많음'], bad: ['웨이팅'] });
+});
+
+test('양쪽에 같은 말이 있으면 좋은 점에만 남긴다', () => {
+  const raw = '{"summary":"요약","good":["가격"],"bad":["가격","웨이팅"]}';
+  assert.deepStrictEqual(parseSummaryPoints(raw), { good: ['가격'], bad: ['웨이팅'] });
+});
+
+test('목록이 없거나 JSON이 아니면 빈 목록이다', () => {
+  assert.deepStrictEqual(parseSummaryPoints('{"summary":"요약만"}'), { good: [], bad: [] });
+  assert.deepStrictEqual(parseSummaryPoints('{"summary":"요약","good":"양이 많음"}'), { good: [], bad: [] });
+  assert.deepStrictEqual(parseSummaryPoints('요약입니다'), { good: [], bad: [] });
+  assert.deepStrictEqual(parseSummaryPoints(null), { good: [], bad: [] });
+});
+
+test('상세에 좋은 점과 아쉬운 점이 summaryPoints로 붙고, 다시 열어도 그대로다', async () => {
+  addPlaceWithReviews('p1', ['고기는 괜찮은데 비싸짐', '숯불이라 좋음']);
+  const fake = test.mock.method(llm, 'generateJson', async () => '{"summary":"고기는 괜찮은데 비싸졌어요","good":["고기 질","숯불"],"bad":["가격이 오름"]}');
+
+  const first = await detail('p1');
+  const second = await detail('p1');
+
+  assert.deepStrictEqual(first.summaryPoints, { good: ['고기 질', '숯불'], bad: ['가격이 오름'] });
+  assert.deepStrictEqual(second.summaryPoints, first.summaryPoints);
+  assert.strictEqual(fake.mock.callCount(), 1);
+});
+
+test('LLM이 요약만 주면 요약은 쓰고 summaryPoints는 빈 목록이다', async () => {
+  addPlaceWithReviews('p2', ['국물이 진함', '반찬이 많음']);
+  test.mock.method(llm, 'generateJson', async () => '{"summary":"국물이 진하고 반찬이 많아요"}');
+
+  const body = await detail('p2');
+
+  assert.strictEqual(body.summary, '국물이 진하고 반찬이 많아요');
+  assert.deepStrictEqual(body.summaryPoints, { good: [], bad: [] });
+});
+
+test('요약이 없으면 summaryPoints도 빈 목록이다', async () => {
+  addPlaceWithReviews('p3', ['혼자 남긴 글이에요']);
+
+  const body = await detail('p3');
+
+  assert.strictEqual(body.summary, null);
+  assert.deepStrictEqual(body.summaryPoints, { good: [], bad: [] });
+});
+
+test('좋은 점을 더하기 전에 저장한 요약은 한 번 다시 만든다', async () => {
+  addPlaceWithReviews('p4', ['예전 요약 하나', '예전 요약 둘']);
+  const { summaryKey: keyOf } = require('../shared/placeSummary');
+  // 예전 모양(good, bad 없음)으로 저장된 요약을 흉내 낸다
+  store.getPlace('p4').summary = { text: '예전 요약', key: keyOf(store.getReviewsByPlace('p4')), createdAt: '2026-11-20T00:00:00.000Z' };
+  const fake = test.mock.method(llm, 'generateJson', async () => '{"summary":"새 요약이에요","good":["새로 뽑음"],"bad":[]}');
+
+  const body = await detail('p4');
+  await detail('p4');
+
+  assert.strictEqual(body.summary, '새 요약이에요');
+  assert.deepStrictEqual(body.summaryPoints, { good: ['새로 뽑음'], bad: [] });
+  assert.strictEqual(fake.mock.callCount(), 1);
+});
