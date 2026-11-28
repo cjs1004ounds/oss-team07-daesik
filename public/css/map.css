@@ -395,11 +395,19 @@
   color: #1f5cbd;
 }
 
-/* 요약 아래의 좋은 점, 아쉬운 점 */
+/* 요약 아래의 좋은 점, 아쉬운 점.
+   이름(좋은 점)과 내용을 옆으로 나란히 둬서, 내용이 두 줄로 넘어가도 둘째 줄이 이름 뒤에 맞춰지게 한다 */
 .summary-points {
+  display: flex;
+  gap: 6px;
   margin: -4px 0 8px;
   padding: 0 10px;
   font-size: 13px;
+}
+
+/* 이름은 줄어들거나 줄이 바뀌지 않게 한다 */
+.summary-points strong {
+  flex: none;
 }
 
 .point-good strong {
